@@ -97,6 +97,10 @@ export function createWorld(): WorldBundle {
   root.add(horizon);
 
   // Main street blocks: readable silhouettes, stepped rooflines, facade trim, recessed windows and storefronts.
+  const windowFrameMatrices: THREE.Matrix4[] = [];
+  const windowPaneMatrices: [THREE.Matrix4[], THREE.Matrix4[]] = [[], []];
+  const windowFrameGeometry = new THREE.BoxGeometry(1.2, 1.5, 0.12);
+  const windowPaneGeometry = new THREE.BoxGeometry(1.05, 1.35, 0.085);
   for (let row = 0; row < 8; row += 1) {
     for (const side of [-1, 1]) {
       const z = -96 + row * 27;
@@ -111,19 +115,14 @@ export function createWorld(): WorldBundle {
       addBox('Building crown ' + row + '-' + side, x, height, z, width + 0.42, 0.3, depth + 0.42, trimMaterial, true);
       addBox('Facade lower band ' + row + '-' + side, x, 1.05, z - depth / 2 - 0.035, width, 0.2, 0.08, trimMaterial);
       addBox('Facade upper band ' + row + '-' + side, x, height - 1.15, z - depth / 2 - 0.04, width, 0.12, 0.08, trimMaterial);
-      const windowGeo = new THREE.BoxGeometry(1.05, 1.35, 0.085);
-      const frameGeo = new THREE.BoxGeometry(1.2, 1.5, 0.12);
       for (let floor = 0; floor < Math.floor(height / 3.2); floor += 1) {
         for (let column = -1; column <= 1; column += 1) {
           const wx = x + column * width * 0.28;
           const wz = z - depth / 2 - 0.09;
-          const frame = new THREE.Mesh(frameGeo, trimMaterial);
-          frame.position.set(wx, 2.25 + floor * 3.1, wz);
-          frame.castShadow = false;
-          root.add(frame);
-          const pane = new THREE.Mesh(windowGeo, windowMaterials[(row + floor + column + 4) % 2]);
-          pane.position.set(wx, 2.25 + floor * 3.1, wz - 0.07);
-          root.add(pane);
+          const frameMatrix = new THREE.Matrix4().makeTranslation(wx, 2.25 + floor * 3.1, wz);
+          windowFrameMatrices.push(frameMatrix);
+          const materialIndex = (row + floor + column + 4) % 2;
+          windowPaneMatrices[materialIndex].push(new THREE.Matrix4().makeTranslation(wx, 2.25 + floor * 3.1, wz - 0.07));
         }
       }
       // Art-deco vertical pilasters and roof equipment.
@@ -132,6 +131,19 @@ export function createWorld(): WorldBundle {
       }
       addBox('Rooftop equipment', x + width * 0.18, height + 0.3, z, width * 0.22, 0.7, depth * 0.2, darkMetal);
     }
+  }
+
+  const windowFrames = new THREE.InstancedMesh(windowFrameGeometry, trimMaterial, windowFrameMatrices.length);
+  windowFrameMatrices.forEach((matrix, index) => windowFrames.setMatrixAt(index, matrix));
+  windowFrames.castShadow = false;
+  windowFrames.receiveShadow = true;
+  root.add(windowFrames);
+  for (let materialIndex = 0; materialIndex < 2; materialIndex += 1) {
+    const matrices = windowPaneMatrices[materialIndex];
+    const panes = new THREE.InstancedMesh(windowPaneGeometry, windowMaterials[materialIndex], matrices.length);
+    matrices.forEach((matrix, index) => panes.setMatrixAt(index, matrix));
+    panes.castShadow = false;
+    root.add(panes);
   }
 
   // The Coastline Diner is a genuinely enterable room. The east-facing doorway is left open;
