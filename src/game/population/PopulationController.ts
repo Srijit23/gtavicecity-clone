@@ -64,6 +64,7 @@ export class PopulationController {
     makeMaterial('#c76d70', 0.36), makeMaterial('#3e414d', 0.38),
   ];
   private readonly trafficGlass = new THREE.MeshStandardMaterial({ color: '#30485a', roughness: 0.2, metalness: 0.18 });
+  private readonly trousers = makeMaterial('#343748');
   private readonly rubber = makeMaterial('#171b24', 0.95);
   private elapsed = 0;
   private tickAccumulator = 0;
@@ -107,7 +108,7 @@ export class PopulationController {
     connect(3, 4); connect(4, 5); connect(5, 6); connect(6, 7);
     connect(7, 0);
     connect(7, 8); connect(8, 9); connect(9, 4);
-    connect(1, 6);
+    connect(1, 6); connect(2, 5);
     return nodes;
   }
 
@@ -150,8 +151,8 @@ export class PopulationController {
       const head = addPart(root, this.pedestrianHeadGeometry, skinMaterials[i % skinMaterials.length], 0, 1.55, 0);
       const leftArm = addPart(root, this.armGeometry, clothes[i % clothes.length], -0.27, 1.02, 0);
       const rightArm = addPart(root, this.armGeometry, clothes[(i + 2) % clothes.length], 0.27, 1.02, 0);
-      const leftLeg = addPart(root, this.legGeometry, makeMaterial('#343748'), -0.12, 0.42, 0);
-      const rightLeg = addPart(root, this.legGeometry, makeMaterial('#343748'), 0.12, 0.42, 0);
+      const leftLeg = addPart(root, this.legGeometry, this.trousers, -0.12, 0.42, 0);
+      const rightLeg = addPart(root, this.legGeometry, this.trousers, 0.12, 0.42, 0);
       const startNode = i % this.graph.length;
       const goalNode = (startNode + 2 + (i % 5)) % this.graph.length;
       const route = this.findPath(startNode, goalNode);
@@ -292,7 +293,7 @@ export class PopulationController {
       const playerZ = focus.z;
       const sameLane = Math.abs(focus.x - car.laneX) < 2.2;
       const forwardGap = (playerZ - car.root.position.z) * car.direction;
-      if (sameLane && forwardGap > -3 && forwardGap < 12) targetSpeed = 0;
+      if (sameLane && Math.abs(focus.z - car.root.position.z) < 8.5) targetSpeed = 0;
       // Stop before a pedestrian occupies a boulevard crosswalk.
       for (const ped of this.pedestrians) {
         if (!ped.active) continue;
