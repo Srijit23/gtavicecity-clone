@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const CHARACTER_URL = 'https://threejs.org/examples/models/gltf/Soldier.glb';
 const PLAYER_RADIUS = 0.38;
 const PLAYER_HEIGHT = 1.82;
+const PLAYER_COLLISION_CELL_SIZE = 32;
 const CHARACTER_TARGET_HEIGHT = 1.78;
 const MODEL_FORWARD_CORRECTION = Math.PI;
 const WALK_SPEED = 4.2;
@@ -16,6 +17,8 @@ export class PlayerController {
   readonly object: THREE.Group;
   readonly mixer: THREE.AnimationMixer;
   private readonly collisionBoxes: THREE.Box3[];
+  private readonly indexedCollisionCount: number;
+  private readonly collisionGrid = new Map<string, THREE.Box3[]>();
   private readonly fallback: THREE.Group;
   private readonly modelRoot = new THREE.Group();
   private readonly contactShadow: THREE.Mesh;
@@ -241,7 +244,28 @@ export class PlayerController {
     if (position.x < -820 || position.x > 24 || position.z < -415 || position.z > 415) return true;
     const feet = position.y;
     const head = feet + PLAYER_HEIGHT;
-    for (const box of this.collisionBoxes) {
+    const minCellX = Math.floor((position.x - PLAYER_RADIUS) / PLAYER_COLLISION_CELL_SIZE);
+    const maxCellX = Math.floor((position.x + PLAYER_RADIUS) / PLAYER_COLLISION_CELL_SIZE);
+    const minCellZ = Math.floor((position.z - PLAYER_RADIUS) / PLAYER_COLLISION_CELL_SIZE);
+    const maxCellZ = Math.floor((position.z + PLAYER_RADIUS) / PLAYER_COLLISION_CELL_SIZE);
+    for (let cellX = minCellX; cellX <= maxCellX; cellX += 1) {
+      for (let cellZ = minCellZ; cellZ <= maxCellZ; cellZ += 1) {
+        const candidates = this.collisionGrid.get(this.collisionCellKey(cellX, cellZ));
+        if (!candidates) continue;
+        for (const box of candidates) {
+          if (head <= box.min.y || feet >= box.max.y) continue;
+          const closestX = THREE.MathUtils.clamp(position.x, box.min.x, box.max.x);
+          const closestZ = THREE.MathUtils.clamp(position.z, box.min.z, box.max.z);
+          const dx = position.x - closestX;
+          const dz = position.z - closestZ;
+          if (dx * dx + dz * dz < PLAYER_RADIUS * PLAYER_RADIUS) return true;
+        }
+      }
+    }
+    // The vehicle's moving AABB is appended after this static grid is built.
+    // Check newly appended dynamic bounds directly so entering/exiting remains safe.
+    for (let i = this.indexedCollisionCount; i < this.collisionBoxes.length; i += 1) {
+      const box = this.collisionBoxes[i];
       if (head <= box.min.y || feet >= box.max.y) continue;
       const closestX = THREE.MathUtils.clamp(position.x, box.min.x, box.max.x);
       const closestZ = THREE.MathUtils.clamp(position.z, box.min.z, box.max.z);
@@ -250,6 +274,31 @@ export class PlayerController {
       if (dx * dx + dz * dz < PLAYER_RADIUS * PLAYER_RADIUS) return true;
     }
     return false;
+  }
+
+  private collisionCellKey(x: number, z: number): string {
+    return `${x},${z}`;
+  }
+
+  private buildCollisionGrid(): void {
+    for (let i = 0; i < this.indexedCollisionCount; i += 1) {
+      const box = this.collisionBoxes[i];
+      const minCellX = Math.floor(box.min.x / PLAYER_COLLISION_CELL_SIZE);
+      const maxCellX = Math.floor(box.max.x / PLAYER_COLLISION_CELL_SIZE);
+      const minCellZ = Math.floor(box.min.z / PLAYER_COLLISION_CELL_SIZE);
+      const maxCellZ = Math.floor(box.max.z / PLAYER_COLLISION_CELL_SIZE);
+      for (let cellX = minCellX; cellX <= maxCellX; cellX += 1) {
+        for (let cellZ = minCellZ; cellZ <= maxCellZ; cellZ += 1) {
+          const key = this.collisionCellKey(cellX, cellZ);
+          let bucket = this.collisionGrid.get(key);
+          if (!bucket) {
+            bucket = [];
+            this.collisionGrid.set(key, bucket);
+          }
+          bucket.push(box);
+        }
+      }
+    }
   }
 
   private createShadowTexture(): THREE.CanvasTexture {
