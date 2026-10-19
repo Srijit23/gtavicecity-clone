@@ -9,14 +9,22 @@ export interface WorldBundle {
   interact: (playerPosition: THREE.Vector3, keys: ReadonlySet<string>) => string;
 }
 
-const mat = (color: THREE.ColorRepresentation, roughness = 0.82, metalness = 0): THREE.MeshStandardMaterial =>
-  new THREE.MeshStandardMaterial({ color, roughness, metalness });
+const materialCache = new Map<string, THREE.MeshStandardMaterial>();
+const mat = (color: THREE.ColorRepresentation, roughness = 0.82, metalness = 0): THREE.MeshStandardMaterial => {
+  const key = `${new THREE.Color(color).getHexString()}|${roughness}|${metalness}`;
+  const cached = materialCache.get(key);
+  if (cached) return cached;
+  const created = new THREE.MeshStandardMaterial({ color, roughness, metalness });
+  materialCache.set(key, created);
+  return created;
+};
 
 export function createWorld(): WorldBundle {
   const root = new THREE.Group();
   root.name = 'Neon Coast playable district';
   const animated: Array<{ object: THREE.Object3D; baseY: number; phase: number; amplitude: number }> = [];
   const collisionBoxes: THREE.Box3[] = [];
+  const sharedBoxGeometry = new THREE.BoxGeometry(1, 1, 1);
   const groundMaterial = mat('#d6b58a');
   const roadMaterial = mat('#303746', 0.96);
   const sidewalkMaterial = mat('#cdbda8');
@@ -40,9 +48,10 @@ export function createWorld(): WorldBundle {
     sx: number, sy: number, sz: number, material: THREE.Material,
     obstacle = false, parent: THREE.Object3D = root,
   ): THREE.Mesh => {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), material);
+    const mesh = new THREE.Mesh(sharedBoxGeometry, material);
     mesh.name = name;
     mesh.position.set(x, y + sy / 2, z);
+    mesh.scale.set(sx, sy, sz);
     mesh.castShadow = sy > 1;
     mesh.receiveShadow = true;
     mesh.userData.cameraObstacle = obstacle;
@@ -66,9 +75,9 @@ export function createWorld(): WorldBundle {
   };
 
   // Warm sand-colored ground plane and continuous asphalt network.
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(1150, 850), groundMaterial);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(850, 850), groundMaterial);
   ground.rotation.x = -Math.PI / 2;
-  ground.position.set(-250, -0.05, 0);
+  ground.position.set(-400, -0.05, 0);
   ground.receiveShadow = true;
   root.add(ground);
 
@@ -99,12 +108,12 @@ export function createWorld(): WorldBundle {
   }
   addInstances('Crosswalk markings', new THREE.BoxGeometry(3.2, 0.018, 0.38), laneMaterial, crosswalkStripes);
 
-  const ocean = new THREE.Mesh(new THREE.PlaneGeometry(460, 800), new THREE.MeshStandardMaterial({ color: '#208da1', roughness: 0.32, metalness: 0.12 }));
+  const ocean = new THREE.Mesh(new THREE.PlaneGeometry(460, 850), new THREE.MeshStandardMaterial({ color: '#208da1', roughness: 0.32, metalness: 0.12 }));
   ocean.rotation.x = -Math.PI / 2;
   ocean.position.set(255, -0.14, 0);
   ocean.receiveShadow = true;
   root.add(ocean);
-  const beach = new THREE.Mesh(new THREE.PlaneGeometry(14, 800), mat('#e8cda0'));
+  const beach = new THREE.Mesh(new THREE.PlaneGeometry(14, 850), mat('#e8cda0'));
   beach.rotation.x = -Math.PI / 2;
   beach.position.set(29.8, -0.025, 0);
   root.add(beach);
