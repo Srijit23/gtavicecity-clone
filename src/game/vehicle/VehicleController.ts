@@ -4,7 +4,7 @@ import { PlayerController } from '../player/PlayerController';
 const GROUND_Y = 0.12;
 const VEHICLE_HALF_WIDTH = 1.02;
 const VEHICLE_HALF_LENGTH = 2.15;
-const ENTER_DISTANCE = 3.8;
+const ENTER_DISTANCE = 4.5;
 
 type WheelAssembly = { pivot: THREE.Group; wheel: THREE.Group; front: boolean; side: number; restY: number };
 
@@ -204,7 +204,7 @@ export class VehicleController {
       this.raycaster.set(roadProbe, this.down);
       this.raycaster.far = 1.15;
       const hits = this.raycaster.intersectObjects(this.world.children, true).filter((hit) => hit.object.name.includes('boulevard') || hit.object.name.includes('street') || hit.object.name.includes('Sidewalk'));
-      const compression = hits.length ? THREE.MathUtils.clamp(0.12 - (0.8 - hits[0].distance), -0.06, 0.08) : 0;
+      const compression = hits.length ? THREE.MathUtils.clamp(0.8 - hits[0].distance, -0.06, 0.08) : 0;
       assembly.pivot.position.y = assembly.restY - compression + Math.sin(this.suspensionPhase + assembly.side * 0.6 + (assembly.front ? 0 : 1.2)) * 0.012;
     }
   }
