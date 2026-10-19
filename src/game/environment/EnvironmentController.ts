@@ -8,20 +8,35 @@ export class EnvironmentController {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly sun: THREE.DirectionalLight;
   private readonly hemisphere: THREE.HemisphereLight;
-  private readonly skyMaterial: THREE.MeshBasicMaterial;
+  private readonly skyMaterial: THREE.ShaderMaterial;
+  private cloudLayer?: THREE.Group;
+  private cloudMaterial?: THREE.MeshBasicMaterial;
+  private sunDisc?: THREE.Mesh;
+  private moonDisc?: THREE.Mesh;
+  private readonly skyZenith = new THREE.Color();
+  private readonly skyHorizon = new THREE.Color();
+  private readonly skyLower = new THREE.Color();
   private readonly fog: THREE.Fog;
   private readonly nightLights: THREE.PointLight[] = [];
   private readonly emissiveWindowMaterials: Array<{ material: THREE.MeshStandardMaterial; baseIntensity: number }> = [];
   private mode: TimeOfDay = 'auto';
   private elapsed = 0;
   private night = 0.15;
-  private readonly sunStart = new THREE.Vector3(-28, 48, 22);
   private readonly colors = {
-    daySky: new THREE.Color('#e7aa96'),
-    sunsetSky: new THREE.Color('#b96679'),
+    daySky: new THREE.Color('#a7d1ee'),
+    sunsetSky: new THREE.Color('#c77e84'),
     nightSky: new THREE.Color('#10172f'),
-    dayFog: new THREE.Color('#e7aa96'),
-    sunsetFog: new THREE.Color('#b96679'),
+    dayZenith: new THREE.Color('#367dc0'),
+    sunsetZenith: new THREE.Color('#514b70'),
+    nightZenith: new THREE.Color('#09152e'),
+    dayHorizon: new THREE.Color('#c7e3f2'),
+    sunsetHorizon: new THREE.Color('#f0aa91'),
+    nightHorizon: new THREE.Color('#293a57'),
+    dayLower: new THREE.Color('#d7e2e7'),
+    sunsetLower: new THREE.Color('#c48289'),
+    nightLower: new THREE.Color('#111a30'),
+    dayFog: new THREE.Color('#bad6e6'),
+    sunsetFog: new THREE.Color('#cf8c91'),
     nightFog: new THREE.Color('#17213c'),
   };
 
@@ -52,10 +67,21 @@ export class EnvironmentController {
     this.hemisphere = hemi;
     this.fog = new THREE.Fog(this.colors.dayFog, 95, 235);
     this.scene.fog = this.fog;
-    const sky = root.children.find((object) => object instanceof THREE.Mesh && object.geometry instanceof THREE.SphereGeometry
-      && (object.material as THREE.Material).type === 'MeshBasicMaterial') as THREE.Mesh | undefined;
-    if (!sky || !(sky.material instanceof THREE.MeshBasicMaterial)) throw new Error('World sky dome could not be found.');
+    const sky = root.getObjectByName('Sky gradient dome');
+    if (!(sky instanceof THREE.Mesh) || !(sky.material instanceof THREE.ShaderMaterial)) {
+      throw new Error('Gradient sky dome is missing or does not use the expected shader material.');
+    }
     this.skyMaterial = sky.material;
+    const clouds = root.getObjectByName('Sky cloud layer');
+    if (clouds instanceof THREE.Group) this.cloudLayer = clouds;
+    const cloudMesh = root.getObjectByName('Instanced slow-moving cloud puffs');
+    if (cloudMesh instanceof THREE.InstancedMesh && cloudMesh.material instanceof THREE.MeshBasicMaterial) {
+      this.cloudMaterial = cloudMesh.material;
+    }
+    const sunDisc = root.getObjectByName('Visible sun disc');
+    const moonDisc = root.getObjectByName('Visible moon disc');
+    if (sunDisc instanceof THREE.Mesh) this.sunDisc = sunDisc;
+    if (moonDisc instanceof THREE.Mesh) this.moonDisc = moonDisc;
     this.update(0);
   }
 
@@ -81,15 +107,27 @@ export class EnvironmentController {
     const sunset = Math.exp(-Math.pow((phase - 0.49) / 0.12, 2));
     const night = 1 - daylight;
     this.night = night;
-    const sky = this.colors.nightSky.clone().lerp(this.colors.daySky, daylight).lerp(this.colors.sunsetSky, sunset * 0.86);
+    const sky = this.colors.nightSky.clone().lerp(this.colors.daySky, daylight).lerp(this.colors.sunsetSky, sunset * 0.72);
     const fog = this.colors.nightFog.clone().lerp(this.colors.dayFog, daylight).lerp(this.colors.sunsetFog, sunset * 0.82);
     this.scene.background = sky;
-    this.skyMaterial.color.copy(sky);
+    this.skyZenith.copy(this.colors.nightZenith).lerp(this.colors.dayZenith, daylight).lerp(this.colors.sunsetZenith, sunset * 0.86);
+    this.skyHorizon.copy(this.colors.nightHorizon).lerp(this.colors.dayHorizon, daylight).lerp(this.colors.sunsetHorizon, sunset * 0.82);
+    this.skyLower.copy(this.colors.nightLower).lerp(this.colors.dayLower, daylight).lerp(this.colors.sunsetLower, sunset * 0.78);
+    this.skyMaterial.uniforms.zenithColor.value = this.skyZenith;
+    this.skyMaterial.uniforms.horizonColor.value = this.skyHorizon;
+    this.skyMaterial.uniforms.lowerColor.value = this.skyLower;
     this.fog.color.copy(fog);
-    this.fog.near = 78 + daylight * 18;
-    this.fog.far = 180 + daylight * 65;
-    this.sun.position.set(this.sunStart.x * Math.cos(phase * Math.PI * 2), 8 + daylight * 48, this.sunStart.z);
-    this.sun.intensity = 0.18 + daylight * 2.95;
+    this.fog.near = 230 + daylight * 55;
+    this.fog.far = 560 + daylight * 220;
+    const solarAngle = phase * Math.PI * 2;
+    const lunarAngle = solarAngle + Math.PI;
+    this.sun.position.set(Math.cos(solarAngle) * 72, 8 + daylight * 48, Math.sin(solarAngle) * 72);
+    this.sunDisc?.position.set(Math.cos(solarAngle) * 790, 130 + Math.sin(solarAngle) * 460, -360);
+    if (this.sunDisc) this.sunDisc.visible = Math.sin(solarAngle) > -0.08;
+    this.moonDisc?.position.set(Math.cos(lunarAngle) * 790, 130 + Math.sin(lunarAngle) * 460, -360);
+    if (this.moonDisc) this.moonDisc.visible = night > 0.38 && Math.sin(lunarAngle) > -0.08;
+    if (this.cloudLayer) this.cloudLayer.rotation.y += dt * 0.0009;
+    if (this.cloudMaterial) this.cloudMaterial.opacity = 0.06 + daylight * 0.3;
     this.sun.color.set('#fff0d2').lerp(new THREE.Color('#ff8b73'), sunset * 0.7);
     this.hemisphere.intensity = 0.24 + daylight * 1.22;
     this.hemisphere.color.set('#8bbbe9').lerp(new THREE.Color('#ffad9a'), sunset * 0.55);
