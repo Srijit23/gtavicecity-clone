@@ -226,7 +226,7 @@ export class VehicleController {
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), material);
       mesh.name = name;
       mesh.position.copy(position);
-      mesh.castShadow = true;
+      mesh.castShadow = false;
       mesh.receiveShadow = true;
       parent.add(mesh);
       return mesh;
@@ -265,7 +265,7 @@ export class VehicleController {
         const wheel = new THREE.Group();
         const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.23, 20), wheelMaterial);
         tire.rotation.z = Math.PI / 2;
-        tire.castShadow = true;
+        tire.castShadow = false;
         wheel.add(tire);
         const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.245, 12), rimMaterial);
         rim.rotation.z = Math.PI / 2;
