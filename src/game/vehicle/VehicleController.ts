@@ -71,25 +71,41 @@ export class VehicleController {
     const substeps = Math.max(1, Math.ceil(dt / (1 / 120)));
     const step = dt / substeps;
     for (let i = 0; i < substeps; i += 1) {
-      if (throttle) this.speed += 10.5 * step;
-      if (brakeOrReverse) {
-        if (this.speed > 0.35) this.speed = Math.max(0, this.speed - 23 * step);
-        else this.speed -= 6.8 * step;
+      const forwardSpeed = this.speed >= 0;
+      if (throttle) {
+        if (this.speed < -0.35) this.speed = Math.min(0, this.speed + 25 * step);
+        else this.speed += (16.5 - Math.min(this.speed, 32) * 0.12) * step;
       }
-      if (!throttle && !brakeOrReverse) this.speed *= Math.exp(-0.72 * step);
-      if (handbrake) this.speed *= Math.exp(-4.5 * step);
-      this.speed = THREE.MathUtils.clamp(this.speed, -7.5, 22);
-      const speedFactor = THREE.MathUtils.clamp(Math.abs(this.speed) / 4.5, 0, 1);
-      this.steering = THREE.MathUtils.damp(this.steering, steeringInput * 0.58 * speedFactor, 5.5, step);
-      this.object.rotation.y -= this.steering * (this.speed / 3.2) * step;
+      if (brakeOrReverse) {
+        if (this.speed > 0.35) this.speed = Math.max(0, this.speed - 29 * step);
+        else this.speed -= 8.5 * step;
+      }
+      if (!throttle && !brakeOrReverse) {
+        const rollingDrag = Math.abs(this.speed) < 0.7 ? 2.4 : 0.85;
+        this.speed = THREE.MathUtils.damp(this.speed, 0, rollingDrag, step);
+      }
+      if (handbrake) this.speed = THREE.MathUtils.damp(this.speed, 0, 2.8, step);
+      this.speed = THREE.MathUtils.clamp(this.speed, -12, 44);
+
+      // Steering is deliberately less sensitive at speed, like a road car with finite tire grip.
+      const speed01 = THREE.MathUtils.clamp(Math.abs(this.speed) / 38, 0, 1);
+      const steeringLimit = THREE.MathUtils.lerp(0.53, 0.23, speed01);
+      const desiredSteering = steeringInput * steeringLimit;
+      this.steering = THREE.MathUtils.damp(this.steering, desiredSteering, handbrake ? 8.5 : 5.8, step);
+      const grip = handbrake ? 1.18 : THREE.MathUtils.lerp(1, 0.72, speed01);
+      const yawRate = Math.tan(this.steering) * (this.speed / 2.75) * grip;
+      this.object.rotation.y -= yawRate * step;
+
       const forward = new THREE.Vector3(-Math.sin(this.object.rotation.y), 0, -Math.cos(this.object.rotation.y));
       const previous = this.object.position.clone();
       this.object.position.addScaledVector(forward, this.speed * step);
       if (this.collidesAt(this.object.position)) {
         this.object.position.copy(previous);
-        this.speed = -this.speed * 0.12;
-        this.steering *= 0.35;
+        this.speed = Math.abs(this.speed) < 2 ? 0 : -this.speed * 0.08;
+        this.steering *= 0.25;
       }
+      // If reversing, steering naturally turns the car in the opposite travel direction.
+      if (!forwardSpeed && !brakeOrReverse && !throttle) this.speed = THREE.MathUtils.damp(this.speed, 0, 1.5, step);
     }
     this.suspensionPhase += dt * (2.2 + Math.abs(this.speed) * 0.8);
     const accelerationPulse = Math.min(1, Math.abs(this.speed - oldSpeed) * 0.055);
