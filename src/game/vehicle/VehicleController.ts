@@ -87,12 +87,19 @@ export class VehicleController {
     const step = dt / substeps;
     for (let i = 0; i < substeps; i += 1) {
       if (throttle) {
-        if (this.speed < -0.35) this.speed = Math.min(0, this.speed + 25 * step);
-        else this.speed += (16.5 - Math.min(this.speed, 32) * 0.12) * step;
+        // Smooth engine pull with a progressive fade near top speed; W cancels reverse first.
+        if (this.speed < -0.35) {
+          this.speed = Math.min(0, this.speed + 18 * step);
+        } else {
+          const forwardSpeed = Math.max(0, this.speed);
+          const engineAcceleration = 12.0 * THREE.MathUtils.clamp(1 - forwardSpeed / 46, 0.18, 1);
+          this.speed += engineAcceleration * step;
+        }
       }
       if (brakeOrReverse) {
-        if (this.speed > 0.35) this.speed = Math.max(0, this.speed - 29 * step);
-        else this.speed -= 8.5 * step;
+        // Strong service brake while moving forward, then controlled reverse acceleration.
+        if (this.speed > 0.35) this.speed = Math.max(0, this.speed - 20 * step);
+        else this.speed -= 7.2 * step;
       }
       if (!throttle && !brakeOrReverse) {
         const rollingDrag = Math.abs(this.speed) < 0.7 ? 2.4 : 0.85;
@@ -103,10 +110,10 @@ export class VehicleController {
 
       // Steering is deliberately less sensitive at speed, like a road car with finite tire grip.
       const speed01 = THREE.MathUtils.clamp(Math.abs(this.speed) / 38, 0, 1);
-      const steeringLimit = THREE.MathUtils.lerp(0.53, 0.14, speed01);
+      const steeringLimit = THREE.MathUtils.lerp(0.48, 0.10, speed01);
       const desiredSteering = steeringInput * steeringLimit;
       this.steering = THREE.MathUtils.damp(this.steering, desiredSteering, handbrake ? 8.5 : 5.8, step);
-      const grip = handbrake ? 1.18 : THREE.MathUtils.lerp(1, 0.62, speed01);
+      const grip = handbrake ? 1.05 : THREE.MathUtils.lerp(1, 0.55, speed01);
       const yawRate = Math.tan(this.steering) * (this.speed / 2.75) * grip;
       this.object.rotation.y -= yawRate * step;
 
@@ -119,11 +126,12 @@ export class VehicleController {
         this.steering *= 0.25;
       }
     }
-    this.suspensionPhase += dt * (2.2 + Math.abs(this.speed) * 0.8);
+    this.suspensionPhase += dt * (3.2 + Math.abs(this.speed) * 0.06);
     const accelerationPulse = Math.min(1, Math.abs(this.speed - oldSpeed) * 0.055);
     this.object.position.y = GROUND_Y + Math.sin(this.suspensionPhase) * (0.004 + accelerationPulse * 0.012);
-    const pitchTarget = throttle ? -0.035 : brakeOrReverse && this.speed > 0 ? 0.045 : 0;
-    const rollTarget = -this.steering * THREE.MathUtils.clamp(Math.abs(this.speed) / 12, 0, 1) * 0.12;
+    // Body pitch follows load transfer: nose rises under throttle and dips under braking.
+    const pitchTarget = throttle ? 0.028 : brakeOrReverse && this.speed > 0 ? -0.038 : 0;
+    const rollTarget = this.steering * THREE.MathUtils.clamp(Math.abs(this.speed) / 12, 0, 1) * 0.085;
     this.bodyVisual.rotation.x = THREE.MathUtils.damp(this.bodyVisual.rotation.x, pitchTarget, 5, dt);
     this.bodyVisual.rotation.z = THREE.MathUtils.damp(this.bodyVisual.rotation.z, rollTarget, 4, dt);
     this.updateVehicleCollisionBox();
@@ -350,7 +358,7 @@ export class VehicleController {
     if (this.realModelLoaded) {
       for (const wheel of this.modelWheels) {
         // The sedan's front is +Z in source space; its visual root faces -Z in-game.
-        wheel.spin -= this.speed * dt / CAR_WHEEL_RADIUS;
+        wheel.spin = THREE.MathUtils.euclideanModulo(wheel.spin - this.speed * dt / CAR_WHEEL_RADIUS + Math.PI, Math.PI * 2) - Math.PI;
         wheel.pivot.rotation.x = wheel.baseRotationX + wheel.spin;
         wheel.pivot.rotation.y = wheel.front ? wheel.baseRotationY - this.steering * 0.55 : wheel.baseRotationY;
         wheel.pivot.rotation.z = wheel.baseRotationZ;
