@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { PlayerController } from '../player/PlayerController';
 
 const GROUND_Y = 0.12;
@@ -7,6 +8,8 @@ const VEHICLE_HALF_LENGTH = 2.15;
 const ENTER_DISTANCE = 4.5;
 
 type WheelAssembly = { pivot: THREE.Group; wheel: THREE.Group; front: boolean; side: number; restY: number };
+type ModelWheel = { pivot: THREE.Group; front: boolean }; 
+const REAL_CAR_MODEL_URL = 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CarConcept/glTF-Binary/CarConcept.glb';
 
 export class VehicleController {
   readonly object: THREE.Group;
@@ -17,7 +20,10 @@ export class VehicleController {
   private readonly staticCollisionBoxes: THREE.Box3[];
   private readonly vehicleCollisionBox = new THREE.Box3();
   private readonly bodyVisual = new THREE.Group();
+  private readonly fallbackVisual = new THREE.Group();
   private readonly wheels: WheelAssembly[] = [];
+  private readonly modelWheels: ModelWheel[] = [];
+  private realModelLoaded = false;
   private readonly raycaster = new THREE.Raycaster();
   private readonly down = new THREE.Vector3(0, -1, 0);
   private readonly chassisBounds = new THREE.Box3();
@@ -43,7 +49,9 @@ export class VehicleController {
     this.object.name = 'Pink coastal coupe';
     this.object.position.set(-5, GROUND_Y, 0.2);
     this.object.add(this.bodyVisual);
+    this.bodyVisual.add(this.fallbackVisual);
     this.buildVehicle();
+    this.loadRealCarModel();
     this.world.add(this.object);
     this.collisionBoxes.push(this.vehicleCollisionBox);
     this.updateVehicleCollisionBox();
@@ -156,7 +164,7 @@ export class VehicleController {
   }
 
   private buildVehicle(): void {
-    const addBox = (name: string, size: THREE.Vector3, position: THREE.Vector3, material: THREE.Material, parent = this.bodyVisual): THREE.Mesh => {
+    const addBox = (name: string, size: THREE.Vector3, position: THREE.Vector3, material: THREE.Material, parent = this.fallbackVisual): THREE.Mesh => {
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), material);
       mesh.name = name;
       mesh.position.copy(position);
@@ -195,7 +203,7 @@ export class VehicleController {
       for (const z of [-1.28, 1.28]) {
         const pivot = new THREE.Group();
         pivot.position.set(x, 0.35, z);
-        this.bodyVisual.add(pivot);
+        this.fallbackVisual.add(pivot);
         const wheel = new THREE.Group();
         const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.23, 20), wheelMaterial);
         tire.rotation.z = Math.PI / 2;
@@ -218,7 +226,79 @@ export class VehicleController {
     shadow.rotation.x = -Math.PI / 2;
     shadow.position.y = 0.015;
     shadow.renderOrder = 1;
-    this.bodyVisual.add(shadow);
+    this.fallbackVisual.add(shadow);
+  }
+
+  /**
+   * Load a production-quality, named-part GLB asynchronously. The procedural coupe
+   * stays visible as a fallback until the full asset and textures are ready.
+   */
+  private loadRealCarModel(): void {
+    const loader = new GLTFLoader();
+    loader.load(
+      REAL_CAR_MODEL_URL,
+      (gltf) => {
+        if (!gltf.scene || !gltf.scene.children.length) return;
+        const modelRoot = new THREE.Group();
+        modelRoot.name = 'Licensed Car Concept GLB';
+        // This asset was authored Z-up with its bonnet along local -Y.
+        // Convert to Three.js Y-up and align the bonnet with the controller's -Z forward.
+        modelRoot.rotation.set(-Math.PI / 2, Math.PI, 0);
+        modelRoot.add(gltf.scene);
+        modelRoot.updateMatrixWorld(true);
+
+        const bounds = new THREE.Box3().setFromObject(modelRoot);
+        const size = bounds.getSize(new THREE.Vector3());
+        if (!Number.isFinite(size.x) || size.x <= 0 || size.z <= 0) {
+          console.warn('[NEON COAST] Car GLB had invalid bounds; keeping procedural fallback.');
+          return;
+        }
+        const scale = Math.min(1.92 / size.x, 4.15 / size.z, 1.58 / Math.max(size.y, 0.01));
+        modelRoot.scale.setScalar(scale);
+        modelRoot.updateMatrixWorld(true);
+        const normalizedBounds = new THREE.Box3().setFromObject(modelRoot);
+        const center = normalizedBounds.getCenter(new THREE.Vector3());
+        modelRoot.position.x -= center.x;
+        modelRoot.position.y -= normalizedBounds.min.y;
+        modelRoot.position.z -= center.z;
+
+        this.bodyVisual.add(modelRoot);
+        this.bodyVisual.updateWorldMatrix(true, true);
+        modelRoot.updateWorldMatrix(true, true);
+
+        // The source asset contains named front/rear wheel pivot groups. Reparent each
+        // to a pivot at its transformed wheel center so steering and rolling do not orbit
+        // the car's origin, even when the source mesh stores wheel vertices in world-like coordinates.
+        const wheelNodes: Array<{ node: THREE.Object3D; front: boolean }> = [];
+        modelRoot.traverse((node) => {
+          if (/^Wheel(Front|Rear)[LR]$/i.test(node.name)) {
+            wheelNodes.push({ node, front: /^WheelFront/i.test(node.name) });
+          }
+        });
+        for (const entry of wheelNodes) {
+          const wheelBounds = new THREE.Box3().setFromObject(entry.node);
+          if (wheelBounds.isEmpty()) continue;
+          const worldCenter = wheelBounds.getCenter(new THREE.Vector3());
+          const localCenter = this.bodyVisual.worldToLocal(worldCenter.clone());
+          const pivot = new THREE.Group();
+          pivot.name = `Animated ${entry.node.name} pivot`;
+          pivot.position.copy(localCenter);
+          this.bodyVisual.add(pivot);
+          pivot.attach(entry.node);
+          this.modelWheels.push({ pivot, front: entry.front });
+        }
+
+        // Respect the existing driving collision footprint and avoid duplicate wheel meshes.
+        this.fallbackVisual.visible = false;
+        this.realModelLoaded = true;
+        this.bodyVisual.updateWorldMatrix(true, true);
+        console.info(`[NEON COAST] Real car model loaded with ${this.modelWheels.length} animated wheel assemblies.`);
+      },
+      undefined,
+      (error) => {
+        console.warn('[NEON COAST] Real car model failed to load; procedural coupe remains active.', error);
+      },
+    );
   }
 
   private updateVehicleCollisionBox(): void {
@@ -232,7 +312,14 @@ export class VehicleController {
   }
 
   private animateWheels(dt: number): void {
+    if (this.realModelLoaded) {
+      for (const wheel of this.modelWheels) {
+        wheel.pivot.rotation.x += this.speed * dt / 0.34;
+        if (wheel.front) wheel.pivot.rotation.y = this.steering * 0.78;
+      }
+    }
     for (const assembly of this.wheels) {
+      if (this.realModelLoaded) continue;
       if (assembly.front) assembly.pivot.rotation.y = this.steering * 0.78;
       assembly.wheel.rotation.x += this.speed * dt / 0.34;
       const roadProbe = new THREE.Vector3(this.object.position.x, this.object.position.y + 0.8, this.object.position.z);
