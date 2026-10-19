@@ -38,14 +38,15 @@
 - [x] Add scene fog and instance repeated foliage/window geometry to control visual depth and draw calls
 - [ ] Verify the district is explorable, all collision boundaries and diner entry/interactions work, and measure FPS on target hardware
 
-## Milestone E: World Population
+## Milestone E: World Population (temporarily disabled at runtime)
 - [x] Add a fixed-size pool of 18 procedural pedestrians with simple walking limb animation
 - [x] Route pedestrians through a connected sidewalk/crosswalk waypoint graph using breadth-first pathfinding
 - [x] Add local pedestrian separation and obstacle checks with re-routing when a waypoint is blocked
 - [x] Add 8 pooled civilian vehicles on the boulevard with lane-following, spacing, and player/crosswalk yielding
 - [x] Throttle simulation to 20 updates per second and use active/visible distance bands around the player
 - [x] Reuse shared geometry/materials and keep population counts fixed to avoid uncontrolled entity growth
-- [ ] Verify NPC movement, traffic yielding, visual pop-in, and performance in a real browser
+- [x] Disconnect population runtime import, construction and update loop; remove PEDS/CARS HUD counts while retaining the module for a future phase
+- [ ] Re-enable and verify NPC movement/traffic only when explicitly requested in a future phase
 
 ## Milestone F: Presentation
 - [x] Add an automatic day/night cycle plus manual day, sunset, and night presets
@@ -55,6 +56,20 @@
 - [x] Add connected HUD controls for time-of-day, sound, help, pause, resume, mouse unlock, and restart
 - [x] Add a pause menu and quick-controls panel; pause player/population simulation while menus are open
 - [ ] Verify visual/audio balance, all UI interactions, and performance in a real browser
+
+## World Expansion and Performance Pass
+
+- [x] Expand the base land footprint to 850 × 850 units (about 9.9× the previous 270 × 270 ground plane) and extend the coastal boulevard, promenade, beach and sky visibility.
+- [x] Connect an outer road grid and add deterministically placed residential zones with shared gabled-roof geometry, instanced house shells, windows, porches, foundations, gardens and driveways.
+- [x] Add simplified apartment blocks, commercial storefronts, a school/sports court, park, playground, pool and warehouse yard.
+- [x] Instance repeated lane marks, promenade rail posts, house components, foliage and cloud puffs; cache repeated standard materials and share box geometry.
+- [x] Add coarse distance-based visibility groups for central and outer districts and separate near-detail groups; retain collision bounds when visuals are culled.
+- [x] Replace the flat sky color with a shader gradient, one instanced drifting cloud layer and sun/moon discs synchronized with the day/night cycle.
+- [x] Add adaptive device pixel ratio scaling with hysteresis and an opt-in diagnostics overlay at `?debug=1`.
+- [x] Extend on-foot, vehicle and camera ranges to cover the larger map and reduce temporary vector allocations in the movement/collision hot loops.
+- [ ] Implement truly incremental asynchronous chunk streaming and a multi-level (LOD 0–3) model pipeline; current expansion is created at startup and uses coarse distance visibility.
+- [ ] Add a dedicated spatial broad phase/occlusion system; collision lists and follow-camera raycasts are still simple and should be profiled.
+- [ ] Verify road continuity, all building collisions, camera obstruction, sky appearance, sustained frame times and memory behaviour in real Chrome sessions on low-end hardware.
 
 ## Milestone G and beyond
 - [ ] Missions, navigation, shops, progression, and saving
