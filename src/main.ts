@@ -5,6 +5,7 @@ import { FollowCamera } from './game/camera/FollowCamera';
 import { PlayerController } from './game/player/PlayerController';
 import { VehicleController } from './game/vehicle/VehicleController';
 import { PopulationController } from './game/population/PopulationController';
+import { AmbienceAudio, EnvironmentController } from './game/environment/EnvironmentController';
 import './style.css';
 
 const byId = <T extends HTMLElement>(id: string): T => {
@@ -23,6 +24,14 @@ const errorMessage = byId<HTMLParagraphElement>('error-message');
 const positionReadout = byId<HTMLSpanElement>('position-readout');
 const unlockButton = byId<HTMLButtonElement>('unlock-button');
 const gameRoot = byId<HTMLDivElement>('game-root');
+const pauseScreen = byId<HTMLElement>('pause-screen');
+const pauseButton = byId<HTMLButtonElement>('pause-button');
+const resumeButton = byId<HTMLButtonElement>('resume-button');
+const timeButton = byId<HTMLButtonElement>('time-button');
+const audioButton = byId<HTMLButtonElement>('audio-button');
+const helpButton = byId<HTMLButtonElement>('help-button');
+const helpPanel = byId<HTMLElement>('help-panel');
+const closeHelpButton = byId<HTMLButtonElement>('close-help-button');
 
 let renderer: THREE.WebGLRenderer | undefined;
 let input: InputManager | undefined;
@@ -30,8 +39,11 @@ let cameraRig: FollowCamera | undefined;
 let playerController: PlayerController | undefined;
 let vehicleController: VehicleController | undefined;
 let populationController: PopulationController | undefined;
+let environmentController: EnvironmentController | undefined;
+const ambienceAudio = new AmbienceAudio();
 let animationFrame = 0;
 let started = false;
+let paused = false;
 let disposed = false;
 let worldScene: THREE.Scene | undefined;
 let lastHudUpdate = 0;
@@ -86,6 +98,7 @@ async function initialize(): Promise<void> {
 
   vehicleController = new VehicleController(world.root, playerController, world.collisionBoxes);
   populationController = new PopulationController(world.root, world.player, vehicleController.object, world.collisionBoxes);
+  environmentController = new EnvironmentController(worldScene, world.root, renderer);
   cameraRig = new FollowCamera(worldScene, world.player);
   input = new InputManager(renderer.domElement);
   const clock = new THREE.Clock();
@@ -109,16 +122,39 @@ async function initialize(): Promise<void> {
     window.removeEventListener('resize', onResize);
     document.removeEventListener('visibilitychange', onVisibility);
     input?.dispose();
+    ambienceAudio.dispose();
     renderer?.dispose();
   }, { once: true });
 
   startButton.addEventListener('click', () => {
     started = true;
+    paused = false;
+    ambienceAudio.start();
     startScreen.classList.add('hidden');
     hud.classList.remove('hidden');
     input?.requestPointerLock();
   });
   unlockButton.addEventListener('click', () => input?.releasePointerLock());
+  const updateTimeButton = (): void => { timeButton.textContent = 'TIME: ' + (environmentController?.currentMode ?? 'auto').toUpperCase(); };
+  timeButton.addEventListener('click', () => { environmentController?.cycleMode(); updateTimeButton(); });
+  audioButton.addEventListener('click', () => {
+    ambienceAudio.setMuted(!ambienceAudio.isMuted);
+    audioButton.textContent = ambienceAudio.isMuted ? 'SOUND: OFF' : 'SOUND: ON';
+    if (!ambienceAudio.isMuted && started) ambienceAudio.start();
+  });
+  const openPauseMenu = (): void => {
+    if (!started) return;
+    paused = true;
+    pauseScreen.classList.remove('hidden');
+    helpPanel.classList.add('hidden');
+    input?.releasePointerLock();
+  };
+  const closePauseMenu = (): void => { paused = false; pauseScreen.classList.add('hidden'); input?.requestPointerLock(); };
+  pauseButton.addEventListener('click', openPauseMenu);
+  resumeButton.addEventListener('click', closePauseMenu);
+  helpButton.addEventListener('click', () => helpPanel.classList.toggle('hidden'));
+  closeHelpButton.addEventListener('click', () => helpPanel.classList.add('hidden'));
+  updateTimeButton();
   renderer.domElement.addEventListener('click', () => {
     if (started && document.pointerLockElement !== renderer?.domElement) input?.requestPointerLock();
   });
@@ -130,8 +166,10 @@ async function initialize(): Promise<void> {
     const dt = Math.min(clock.getDelta(), 0.05);
     const elapsed = clock.elapsedTime;
     world.update(dt, elapsed);
+    environmentController?.update(dt);
+    ambienceAudio.updateNight(environmentController?.nightAmount ?? 0.15);
 
-    if (started && !document.hidden) {
+    if (started && !paused && !document.hidden) {
       vehicleController?.update(dt, input.keys);
       populationController?.update(dt, Boolean(vehicleController?.isDriving));
       cameraRig.setTarget(vehicleController?.isDriving ? vehicleController.object : world.player, Boolean(vehicleController?.isDriving));
@@ -145,7 +183,7 @@ async function initialize(): Promise<void> {
 
     cameraRig.follow(dt);
     renderer.render(worldScene, cameraRig.camera);
-    if (elapsed - lastHudUpdate > 0.15 && started) {
+    if (elapsed - lastHudUpdate > 0.15 && started && !paused) {
       const position = world.player.position;
       positionReadout.textContent = vehicleController?.isDriving
         ? `DRIVING · ${vehicleController.speedKmh} KM/H · ${populationController?.pedestrianCount ?? 0} PEDS · ${populationController?.trafficCount ?? 0} CARS`
@@ -178,5 +216,6 @@ window.addEventListener('pagehide', () => {
   disposed = true;
   window.cancelAnimationFrame(animationFrame);
   input?.dispose();
+  ambienceAudio.dispose();
   renderer?.dispose();
 });
