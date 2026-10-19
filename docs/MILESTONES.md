@@ -19,12 +19,14 @@
 - [ ] Upgrade collision broad-phase/spatial acceleration and verify gameplay in a real browser
 
 ## Milestone C: Vehicle
-- [x] Build a detailed procedural coupe with body panels, glazing, interior, lighting, chrome, and four wheel/rim assemblies
+- [x] Build a detailed procedural coupe as an emergency fallback with body panels, glazing, interior, lighting, chrome, and four wheel/rim assemblies
 - [x] Add fixed-step signed-speed vehicle dynamics, acceleration, braking, reverse, steering, drag, and collision response
-- [x] Add per-wheel suspension probes, wheel rotation/steering, and body pitch/roll under acceleration and cornering
+- [x] Add lightweight wheel animation and body pitch/roll under acceleration and cornering
 - [x] Integrate E-to-enter/exit state transitions, player motion reset, on-foot vehicle collision, and a driving follow-camera
 - [x] Add a digital speedometer with gear direction, speed bar, and contextual vehicle-control hints
 - [x] Tune acceleration, braking, reverse, speed-dependent steering sensitivity, handbrake behavior, and collision response
+- [x] Bundle the 185 KB Kenney Car Kit sedan GLB locally under `public/models` (CC0) to remove runtime car-CDN/DNS failures
+- [x] Fit the model to the existing vehicle footprint, align the visual forward axis with controller -Z, animate all four named wheel nodes, and steer the front pair with A/D
 - [x] Keep the driving camera aligned behind the car heading with smoothed follow and mouse orbit
 - [ ] Verify entry, driving, braking, reversing, exit, and walking transitions in a real browser
 
