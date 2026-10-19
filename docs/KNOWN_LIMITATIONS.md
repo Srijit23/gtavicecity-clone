@@ -1,10 +1,9 @@
-# Known limitations after Milestone A
+# Known limitations after Milestone B
 
-- The player is an explicitly temporary procedural silhouette, not a rigged production character.
-- Movement is a lightweight prototype controller. There is no Rapier physics, grounded jump system, slope handling, or building collision resolution yet.
-- Camera obstruction raycasts currently inspect marked scene objects without a spatial index; this is acceptable for the small foundation scene but must be improved as the world grows.
-- The city is a small procedural test district. Buildings are not enterable and do not yet have complete collision geometry.
-- There are no drivable vehicles, NPCs, traffic, missions, map routing, save system, or police/wanted system.
-- The visual assets are generated from Three.js primitives; there are no external character, vehicle, texture, or audio assets in this milestone.
-- Google Fonts are an optional external visual enhancement; system fallbacks are provided.
-- The build workflow has not yet been run in this environment, and Chrome/manual gameplay verification remains pending until a browser-capable test environment is available.
+- The rigged Soldier model and its animation clips load at runtime from the Three.js example asset host; gameplay requires network access to that asset URL. A procedural fallback character remains available if the download fails or times out.
+- The model source provides idle, walk, and run clips. If no dedicated jump clip is present, the controller synthesizes a simple jump pose from rig bones; this is functional but less polished than a purpose-authored jump/fall/land animation set.
+- Player physics use a lightweight custom controller with gravity, jump impulse, horizontal acceleration, axis-separated AABB/circle collision, and fixed ground height. It is not a full rigid-body engine; slopes, stairs, moving platforms, and variable terrain are not supported.
+- Building and roof-trim boxes provide static collision. Fine-detail geometry, palm trees, street furniture, and the ocean are not all solid obstacles yet.
+- Camera obstruction uses raycasts against marked scene objects without a spatial index; this is suitable for the small test district but should be optimized as the world grows.
+- The city remains a small procedural test district. Buildings are not enterable and there are no drivable vehicles, NPCs, civilian traffic, missions, map routing, save system, or police/wanted system.
+- Manual Chrome gameplay verification and target-hardware performance testing remain pending.
