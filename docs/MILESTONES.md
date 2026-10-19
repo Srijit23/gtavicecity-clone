@@ -67,6 +67,8 @@
 - [x] Replace the flat sky color with a shader gradient, one instanced drifting cloud layer and sun/moon discs synchronized with the day/night cycle.
 - [x] Add adaptive device pixel ratio scaling with hysteresis and an opt-in diagnostics overlay at `?debug=1`.
 - [x] Extend on-foot, vehicle and camera ranges to cover the larger map and reduce temporary vector allocations in the movement/collision hot loops.
+- [x] Add 32-unit XZ collision broad-phase grids for on-foot and vehicle checks; retain a direct check for the moving vehicle bound.
+- [x] Cache camera-obstacle world spheres and filter follow-camera raycast candidates by proximity to the camera ray segment.
 - [ ] Implement truly incremental asynchronous chunk streaming and a multi-level (LOD 0–3) model pipeline; current expansion is created at startup and uses coarse distance visibility.
 - [ ] Add a dedicated spatial broad phase/occlusion system; collision lists and follow-camera raycasts are still simple and should be profiled.
 - [ ] Verify road continuity, all building collisions, camera obstruction, sky appearance, sustained frame times and memory behaviour in real Chrome sessions on low-end hardware.
