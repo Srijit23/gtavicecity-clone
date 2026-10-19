@@ -146,6 +146,9 @@ async function initialize(): Promise<void> {
   renderer.toneMappingExposure = 1.15;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // The sun direction and static city geometry do not change; moving actors use contact shadows.
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = true;
   renderer.domElement.id = 'game-canvas';
   gameRoot.replaceChildren(renderer.domElement);
 
