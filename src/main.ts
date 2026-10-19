@@ -22,6 +22,10 @@ const hud = byId<HTMLDivElement>('hud');
 const errorScreen = byId<HTMLDivElement>('error-screen');
 const errorMessage = byId<HTMLParagraphElement>('error-message');
 const positionReadout = byId<HTMLSpanElement>('position-readout');
+const vehicleDashboard = byId<HTMLDivElement>('vehicle-dashboard');
+const speedValue = byId<HTMLSpanElement>('speed-value');
+const speedGear = byId<HTMLSpanElement>('speed-gear');
+const speedFill = byId<HTMLSpanElement>('speed-fill');
 const unlockButton = byId<HTMLButtonElement>('unlock-button');
 const gameRoot = byId<HTMLDivElement>('game-root');
 const pauseScreen = byId<HTMLElement>('pause-screen');
@@ -209,13 +213,25 @@ async function initialize(): Promise<void> {
         : `X ${position.x.toFixed(1)} · Z ${position.z.toFixed(1)} · ${playerController.isUsingRiggedCharacter ? 'RIGGED' : 'FALLBACK'} · ${populationController?.pedestrianCount ?? 0} PEDS · ${populationController?.trafficCount ?? 0} CARS`;
       const vehiclePrompt = document.getElementById('vehicle-prompt');
       const cityPrompt = document.getElementById('city-prompt');
+      const driving = Boolean(vehicleController?.isDriving);
+      vehicleDashboard.classList.toggle('hidden', !driving);
+      if (driving && vehicleController) {
+        speedValue.textContent = String(vehicleController.speedKmh);
+        speedGear.textContent = vehicleController.signedSpeed < -0.35 ? 'R' : vehicleController.speedKmh < 2 ? 'N' : 'D';
+        speedFill.style.width = `${Math.min(100, (vehicleController.speedKmh / 160) * 100)}%`;
+        speedFill.classList.toggle('speed-fill-high', vehicleController.speedKmh >= 110);
+      } else {
+        speedValue.textContent = '0';
+        speedFill.style.width = '0%';
+        speedFill.classList.remove('speed-fill-high');
+      }
       if (cityPrompt) {
         cityPrompt.textContent = currentCityPrompt;
         cityPrompt.classList.toggle('visible', Boolean(currentCityPrompt));
       }
       if (vehiclePrompt) {
         vehiclePrompt.textContent = vehicleController?.isDriving
-          ? 'W ACCELERATE · S BRAKE / REVERSE · A / D STEER · SPACE HANDBRAKE · E EXIT'
+          ? 'W ACCELERATE · S BRAKE / REVERSE · A / D STEER · SPACE HANDBRAKE · E EXIT · MOUSE LOOK'
           : vehicleController?.nearVehicle ? 'PRESS E TO ENTER THE COUPE' : '';
         vehiclePrompt.classList.toggle('visible', Boolean(vehicleController?.isDriving || vehicleController?.nearVehicle));
       }
