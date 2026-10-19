@@ -13,7 +13,7 @@ export class FollowCamera {
   private readonly direction = new THREE.Vector3();
   private readonly obstacles: THREE.Object3D[] = [];
 
-  constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, target: THREE.Object3D) {
+  constructor(scene: THREE.Scene, target: THREE.Object3D) {
     this.scene = scene;
     this.target = target;
     this.scene.traverse((object) => { if (object.userData.cameraObstacle === true) this.obstacles.push(object); });
