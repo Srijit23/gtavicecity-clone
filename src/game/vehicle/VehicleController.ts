@@ -14,6 +14,9 @@ export class VehicleController {
   private readonly player: THREE.Group;
   private readonly playerController: PlayerController;
   private readonly collisionBoxes: THREE.Box3[];
+  private readonly staticCollisionBoxes: THREE.Box3[];
+  private readonly vehicleCollisionBox = new THREE.Box3();
+  private readonly bodyVisual = new THREE.Group();
   private readonly wheels: WheelAssembly[] = [];
   private readonly raycaster = new THREE.Raycaster();
   private readonly down = new THREE.Vector3(0, -1, 0);
@@ -35,17 +38,22 @@ export class VehicleController {
     this.playerController = playerController;
     this.player = playerController.object;
     this.collisionBoxes = collisionBoxes;
+    this.staticCollisionBoxes = collisionBoxes.slice();
     this.object = new THREE.Group();
     this.object.name = 'Pink coastal coupe';
     this.object.position.set(-5, GROUND_Y, 0.2);
+    this.object.add(this.bodyVisual);
     this.buildVehicle();
     this.world.add(this.object);
+    this.collisionBoxes.push(this.vehicleCollisionBox);
+    this.updateVehicleCollisionBox();
   }
 
   update(dt: number, keys: ReadonlySet<string>): void {
     const enterDown = keys.has('KeyE');
     const enterPressed = enterDown && !this.eWasDown;
     this.eWasDown = enterDown;
+    this.updateVehicleCollisionBox();
     if (!this.driving && enterPressed && this.player.position.distanceTo(this.object.position) <= ENTER_DISTANCE) {
       this.driving = true;
       this.speed = 0;
@@ -85,7 +93,12 @@ export class VehicleController {
     }
     this.suspensionPhase += dt * (2.2 + Math.abs(this.speed) * 0.8);
     const accelerationPulse = Math.min(1, Math.abs(this.speed - oldSpeed) * 0.055);
-    this.object.position.y = GROUND_Y + Math.sin(this.suspensionPhase) * (0.008 + accelerationPulse * 0.035);
+    this.object.position.y = GROUND_Y + Math.sin(this.suspensionPhase) * (0.004 + accelerationPulse * 0.012);
+    const pitchTarget = throttle ? -0.035 : brakeOrReverse && this.speed > 0 ? 0.045 : 0;
+    const rollTarget = -this.steering * THREE.MathUtils.clamp(Math.abs(this.speed) / 12, 0, 1) * 0.12;
+    this.bodyVisual.rotation.x = THREE.MathUtils.damp(this.bodyVisual.rotation.x, pitchTarget, 5, dt);
+    this.bodyVisual.rotation.z = THREE.MathUtils.damp(this.bodyVisual.rotation.z, rollTarget, 4, dt);
+    this.updateVehicleCollisionBox();
     this.animateWheels(dt);
   }
 
@@ -109,7 +122,7 @@ export class VehicleController {
 
   private playerBlocked(position: THREE.Vector3): boolean {
     const radius = 0.38;
-    return this.collisionBoxes.some((box) => {
+    return this.staticCollisionBoxes.some((box) => {
       if (position.y + 1.82 <= box.min.y || position.y >= box.max.y) return false;
       const x = THREE.MathUtils.clamp(position.x, box.min.x, box.max.x);
       const z = THREE.MathUtils.clamp(position.z, box.min.z, box.max.z);
@@ -122,7 +135,7 @@ export class VehicleController {
       new THREE.Vector3(position.x, position.y + 0.7, position.z),
       new THREE.Vector3(VEHICLE_HALF_WIDTH * 2, 1.35, VEHICLE_HALF_LENGTH * 2),
     );
-    for (const box of this.collisionBoxes) {
+    for (const box of this.staticCollisionBoxes) {
       if (this.chassisBounds.max.y <= box.min.y || this.chassisBounds.min.y >= box.max.y) continue;
       if (this.chassisBounds.intersectsBox(box)) return true;
     }
@@ -130,7 +143,7 @@ export class VehicleController {
   }
 
   private buildVehicle(): void {
-    const addBox = (name: string, size: THREE.Vector3, position: THREE.Vector3, material: THREE.Material, parent = this.object): THREE.Mesh => {
+    const addBox = (name: string, size: THREE.Vector3, position: THREE.Vector3, material: THREE.Material, parent = this.bodyVisual): THREE.Mesh => {
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), material);
       mesh.name = name;
       mesh.position.copy(position);
@@ -169,7 +182,7 @@ export class VehicleController {
       for (const z of [-1.28, 1.28]) {
         const pivot = new THREE.Group();
         pivot.position.set(x, 0.35, z);
-        this.object.add(pivot);
+        this.bodyVisual.add(pivot);
         const wheel = new THREE.Group();
         const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.23, 20), wheelMaterial);
         tire.rotation.z = Math.PI / 2;
@@ -192,7 +205,17 @@ export class VehicleController {
     shadow.rotation.x = -Math.PI / 2;
     shadow.position.y = 0.015;
     shadow.renderOrder = 1;
-    this.object.add(shadow);
+    this.bodyVisual.add(shadow);
+  }
+
+  private updateVehicleCollisionBox(): void {
+    const yaw = this.object.rotation.y;
+    const halfX = VEHICLE_HALF_WIDTH * Math.abs(Math.cos(yaw)) + VEHICLE_HALF_LENGTH * Math.abs(Math.sin(yaw));
+    const halfZ = VEHICLE_HALF_LENGTH * Math.abs(Math.cos(yaw)) + VEHICLE_HALF_WIDTH * Math.abs(Math.sin(yaw));
+    this.vehicleCollisionBox.setFromCenterAndSize(
+      new THREE.Vector3(this.object.position.x, this.object.position.y + 0.72, this.object.position.z),
+      new THREE.Vector3(halfX * 2, 1.42, halfZ * 2),
+    );
   }
 
   private animateWheels(dt: number): void {
