@@ -388,7 +388,11 @@ export function createExpansionDistricts(parent: THREE.Group, collisionBoxes: TH
   // Nine connected north-south collectors and regular east-west streets form a readable road hierarchy.
   for (const x of [-800, -720, -640, -560, -480, -400, -320, -240, -160, -80]) addRoad(x, 0, 8.5, 740, true);
   for (const z of [-360, -280, -200, -120, -87, -34, 19, 73, 120, 200, 280, 360]) {
-    addRoad(-430, z, 9.0, 780, false);
+    // Existing central cross streets already cover -98..0 at these four rows; stop exactly at their west edge to avoid coplanar overlap.
+    const centralStreetAlreadyExists = [-87, -34, 19, 73].includes(z);
+    const startX = -820;
+    const endX = centralStreetAlreadyExists ? -98 : 0;
+    addRoad((startX + endX) / 2, z, 9.0, endX - startX, false);
   }
   addInstances(roads, 'Collector road asphalt', boxGeometry, roadMat, roadMatrices);
   addInstances(roads, 'Collector sidewalks', boxGeometry, sidewalkMat, sidewalkMatrices);
@@ -397,10 +401,10 @@ export function createExpansionDistricts(parent: THREE.Group, collisionBoxes: TH
   const northNear: HousePlacement[] = [], northMid: HousePlacement[] = [], northFar: HousePlacement[] = [];
   const southNear: HousePlacement[] = [], southMid: HousePlacement[] = [], southFar: HousePlacement[] = [];
   let seed = 100;
-  for (const z of [-320, -240, -160, -80, 80, 160, 240, 320]) {
+  for (const z of [-320, -240, -160, -100, 100, 160, 240, 320]) {
     for (const x of [-120, -200, -280, -360, -440, -520, -600, -680, -760]) {
       // The park, school, apartments and warehouse take the most prominent corner lots.
-      if ((x === -280 && z === 240) || (x === -200 && z === 80) || (x === -280 && z === 80)
+      if ((x === -280 && z === 240) || (x === -200 && z === 100) || (x === -280 && z === 100)
           || (x === -360 && z === -240)) continue;
       const rotation = z < 0 ? 0 : Math.PI;
       const width = 10.5 + random01(seed + 1) * 2.4;
@@ -446,8 +450,8 @@ export function createExpansionDistricts(parent: THREE.Group, collisionBoxes: TH
       lastFocus.copy(focus);
       for (const zone of cullZones) {
         const distance = Math.sqrt(zone.center.distanceToSquared(focus));
-        zone.root.visible = distance < 760 + zone.radius;
-        if (zone.details) zone.details.visible = distance < 360 + zone.radius * 0.35;
+        zone.root.visible = distance < 650 + zone.radius;
+        if (zone.details) zone.details.visible = distance < 500 + zone.radius * 0.25;
       }
       // Keep the roots stable and only change visibility at a quarter-second cadence.
       void elapsed;
