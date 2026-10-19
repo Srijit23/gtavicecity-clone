@@ -239,8 +239,18 @@ export class PopulationController {
             vz += oz / Math.sqrt(d2) * push * 0.95;
           }
         }
-        // Cars yield at crosswalks; pedestrians pause rather than stepping into a moving car.
-        if (playerIsDriving && ped.root.position.distanceTo(this.playerVehicle.position) < 5.2) {
+        // Give the player and player-driven car a personal-space buffer.
+        const playerTarget = playerIsDriving ? this.playerVehicle.position : this.player.position;
+        const playerDx = ped.root.position.x - playerTarget.x;
+        const playerDz = ped.root.position.z - playerTarget.z;
+        const playerDistance = Math.hypot(playerDx, playerDz);
+        if (playerDistance > 0.01 && playerDistance < 1.8) {
+          const push = (1.8 - playerDistance) / 1.8;
+          vx += playerDx / playerDistance * push * 1.25;
+          vz += playerDz / playerDistance * push * 1.25;
+        }
+        // When the player is driving, pedestrians pause rather than stepping into the car's path.
+        if (playerIsDriving && playerDistance < 5.2) {
           vx = 0; vz = 0;
         }
         const speed = Math.hypot(vx, vz);
