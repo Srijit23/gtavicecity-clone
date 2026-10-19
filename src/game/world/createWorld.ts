@@ -72,16 +72,16 @@ export function createWorld(): WorldBundle {
   ground.receiveShadow = true;
   root.add(ground);
 
-  addBox('Oceanfront boulevard', 0, 0, 0, 15, 0.12, 760, roadMaterial);
+  addBox('Oceanfront boulevard', 0, 0, 0, 15, 0.12, 800, roadMaterial);
   addBox('West cross street', -49, 0, -34, 98, 0.12, 10, roadMaterial);
   addBox('Midtown cross street', 43, 0, 19, 98, 0.12, 10, roadMaterial);
   addBox('Marina cross street', -38, 0, 73, 105, 0.12, 10, roadMaterial);
   addBox('North loop street', -39, 0, -87, 108, 0.12, 10, roadMaterial);
-  addBox('West sidewalk', -10.45, 0.02, 0, 4.1, 0.18, 760, sidewalkMaterial);
-  addBox('East sidewalk', 10.45, 0.02, 0, 4.1, 0.18, 760, sidewalkMaterial);
-  addBox('Beach promenade', 22.4, 0.02, 0, 6.7, 0.16, 760, sidewalkMaterial);
-  addBox('West curb', -12.62, 0.02, 0, 0.18, 0.2, 760, curbMaterial);
-  addBox('East curb', 12.62, 0.02, 0, 0.18, 0.2, 760, curbMaterial);
+  addBox('West sidewalk', -10.45, 0.02, 0, 4.1, 0.18, 800, sidewalkMaterial);
+  addBox('East sidewalk', 10.45, 0.02, 0, 4.1, 0.18, 800, sidewalkMaterial);
+  addBox('Beach promenade', 22.4, 0.02, 0, 6.7, 0.16, 800, sidewalkMaterial);
+  addBox('West curb', -12.62, 0.02, 0, 0.18, 0.2, 800, curbMaterial);
+  addBox('East curb', 12.62, 0.02, 0, 0.18, 0.2, 800, curbMaterial);
   const centerDashes: THREE.Matrix4[] = [];
   const leftDashes: THREE.Matrix4[] = [];
   const rightDashes: THREE.Matrix4[] = [];
@@ -307,8 +307,85 @@ export function createWorld(): WorldBundle {
   player.position.set(-5, 0.12, 4);
   root.add(player);
 
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(1200, 24, 16), new THREE.MeshBasicMaterial({ color: '#efad98', side: THREE.BackSide }));
+  // A single back-face sky dome gives a smooth vertical gradient at one draw call.
+  const skyMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      zenithColor: { value: new THREE.Color('#367dc0') },
+      horizonColor: { value: new THREE.Color('#b8d9ed') },
+      lowerColor: { value: new THREE.Color('#c7d8e3') },
+    },
+    vertexShader: `varying vec3 vSkyWorldPosition;
+void main() {
+  vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+  vSkyWorldPosition = worldPosition.xyz;
+  gl_Position = projectionMatrix * viewMatrix * worldPosition;
+}`,
+    fragmentShader: `uniform vec3 zenithColor;
+uniform vec3 horizonColor;
+uniform vec3 lowerColor;
+varying vec3 vSkyWorldPosition;
+void main() {
+  vec3 viewDirection = normalize(vSkyWorldPosition - cameraPosition);
+  float altitude = viewDirection.y;
+  float upperBlend = smoothstep(-0.04, 0.72, altitude);
+  vec3 skyColor = mix(horizonColor, zenithColor, upperBlend);
+  float lowerBlend = 1.0 - smoothstep(-0.22, 0.015, altitude);
+  skyColor = mix(skyColor, lowerColor, lowerBlend);
+  gl_FragColor = vec4(skyColor, 1.0);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`,
+    side: THREE.BackSide,
+    depthWrite: false,
+    fog: false,
+  });
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(1200, 32, 20), skyMaterial);
+  sky.name = 'Sky gradient dome';
   root.add(sky);
+
+  // Low-poly clouds are a single instanced draw call; only the parent transform drifts.
+  const cloudLayer = new THREE.Group();
+  cloudLayer.name = 'Sky cloud layer';
+  const cloudMaterial = new THREE.MeshBasicMaterial({
+    color: '#ffffff', transparent: true, opacity: 0.36, depthWrite: false, side: THREE.DoubleSide, fog: false,
+  });
+  const cloudPuffGeometry = new THREE.SphereGeometry(1, 8, 5);
+  const cloudCount = 42;
+  const cloudInstances = new THREE.InstancedMesh(cloudPuffGeometry, cloudMaterial, cloudCount * 3);
+  cloudInstances.name = 'Instanced slow-moving cloud puffs';
+  let cloudSeed = 20261019;
+  const cloudRandom = (): number => {
+    cloudSeed = (Math.imul(cloudSeed, 1664525) + 1013904223) >>> 0;
+    return cloudSeed / 4294967296;
+  };
+  for (let cloud = 0; cloud < cloudCount; cloud += 1) {
+    const x = -760 + cloudRandom() * 1170;
+    const y = 105 + cloudRandom() * 120;
+    const z = -385 + cloudRandom() * 770;
+    const width = 18 + cloudRandom() * 27;
+    const depth = 8 + cloudRandom() * 17;
+    for (let puff = 0; puff < 3; puff += 1) {
+      const puffScale = 0.7 + cloudRandom() * 0.45;
+      const position = new THREE.Vector3(x + (puff - 1) * width * 0.38, y + cloudRandom() * 4, z + (puff % 2 ? depth * 0.22 : -depth * 0.22));
+      const scale = new THREE.Vector3(width * puffScale * 0.62, (2.2 + cloudRandom() * 2.2) * puffScale, depth * puffScale * 0.66);
+      cloudInstances.setMatrixAt(cloud * 3 + puff, new THREE.Matrix4().compose(position, new THREE.Quaternion(), scale));
+    }
+  }
+  cloudInstances.instanceMatrix.needsUpdate = true;
+  cloudInstances.computeBoundingSphere();
+  cloudLayer.add(cloudInstances);
+  root.add(cloudLayer);
+
+  const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(8.5, 16, 10), new THREE.MeshBasicMaterial({ color: '#fff0bf', fog: false }));
+  sunDisc.name = 'Visible sun disc';
+  sunDisc.frustumCulled = false;
+  root.add(sunDisc);
+  const moonDisc = new THREE.Mesh(new THREE.SphereGeometry(5.6, 14, 8), new THREE.MeshBasicMaterial({ color: '#dce8ff', fog: false }));
+  moonDisc.name = 'Visible moon disc';
+  moonDisc.frustumCulled = false;
+  moonDisc.visible = false;
+  root.add(moonDisc);
+
   const sun = new THREE.DirectionalLight('#ffe0b6', 3.0);
   sun.position.set(-28, 48, 22);
   sun.castShadow = true;
