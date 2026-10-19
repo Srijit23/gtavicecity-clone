@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { InputManager } from './game/input/InputManager';
 import { createWorld } from './game/world/createWorld';
 import { FollowCamera } from './game/camera/FollowCamera';
+import { PlayerController } from './game/player/PlayerController';
+import { VehicleController } from './game/vehicle/VehicleController';
+import { AmbienceAudio, EnvironmentController } from './game/environment/EnvironmentController';
 import './style.css';
 
 const byId = <T extends HTMLElement>(id: string): T => {
@@ -9,6 +12,16 @@ const byId = <T extends HTMLElement>(id: string): T => {
   if (!element) throw new Error(`Required UI element #${id} was not found.`);
   return element as T;
 };
+
+const diagnosticsPanel = (() => {
+  if (new URLSearchParams(window.location.search).get('debug') !== '1') return undefined;
+  const panel = document.createElement('pre');
+  panel.id = 'performance-diagnostics';
+  panel.style.cssText = 'position:fixed;left:14px;bottom:64px;z-index:20;max-width:min(420px,calc(100vw - 28px));margin:0;padding:12px 14px;background:rgba(8,12,22,.88);border:1px solid rgba(255,255,255,.22);border-radius:8px;color:#d9f6eb;font:11px/1.6 ui-monospace,monospace;white-space:pre-wrap;pointer-events:none';
+  panel.textContent = 'Performance diagnostics initializing…';
+  document.body.append(panel);
+  return panel;
+})();
 
 const loading = byId<HTMLDivElement>('loading');
 const loadingMessage = byId<HTMLParagraphElement>('loading-message');
@@ -18,18 +31,78 @@ const hud = byId<HTMLDivElement>('hud');
 const errorScreen = byId<HTMLDivElement>('error-screen');
 const errorMessage = byId<HTMLParagraphElement>('error-message');
 const positionReadout = byId<HTMLSpanElement>('position-readout');
+const vehicleDashboard = byId<HTMLDivElement>('vehicle-dashboard');
+const speedValue = byId<HTMLSpanElement>('speed-value');
+const speedGear = byId<HTMLSpanElement>('speed-gear');
+const speedFill = byId<HTMLSpanElement>('speed-fill');
 const unlockButton = byId<HTMLButtonElement>('unlock-button');
 const gameRoot = byId<HTMLDivElement>('game-root');
+const pauseScreen = byId<HTMLElement>('pause-screen');
+const pauseButton = byId<HTMLButtonElement>('pause-button');
+const resumeButton = byId<HTMLButtonElement>('resume-button');
+const timeButton = byId<HTMLButtonElement>('time-button');
+const audioButton = byId<HTMLButtonElement>('audio-button');
+const helpButton = byId<HTMLButtonElement>('help-button');
+const helpPanel = byId<HTMLElement>('help-panel');
+const closeHelpButton = byId<HTMLButtonElement>('close-help-button');
 
 let renderer: THREE.WebGLRenderer | undefined;
 let input: InputManager | undefined;
 let cameraRig: FollowCamera | undefined;
+let playerController: PlayerController | undefined;
+let vehicleController: VehicleController | undefined;
+let environmentController: EnvironmentController | undefined;
+const ambienceAudio = new AmbienceAudio();
 let animationFrame = 0;
 let started = false;
+let paused = false;
 let disposed = false;
-let player: THREE.Group | undefined;
 let worldScene: THREE.Scene | undefined;
 let lastHudUpdate = 0;
+let lastDiagnosticsUpdate = 0;
+let currentCityPrompt = '';
+let maxPixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+let activePixelRatio = maxPixelRatio;
+let frameTimeEmaMs = 1000 / 60;
+let slowFrameSeconds = 0;
+let stableFrameSeconds = 0;
+let pixelRatioCooldown = 0;
+
+function applyPixelRatio(): void {
+  if (!renderer) return;
+  renderer.setPixelRatio(activePixelRatio);
+  // Resize the drawing buffer without rewriting the canvas's CSS dimensions.
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+}
+
+function adaptPixelRatio(frameSeconds: number, frameMilliseconds: number): void {
+  if (!renderer || document.hidden || frameSeconds > 0.25) return;
+  frameTimeEmaMs += (frameMilliseconds - frameTimeEmaMs) * 0.08;
+  pixelRatioCooldown = Math.max(0, pixelRatioCooldown - frameSeconds);
+  if (frameTimeEmaMs > 22 && frameMilliseconds > 20) {
+    slowFrameSeconds += frameSeconds;
+    stableFrameSeconds = 0;
+  } else if (frameTimeEmaMs < 15.5 && frameMilliseconds < 19) {
+    stableFrameSeconds += frameSeconds;
+    slowFrameSeconds = 0;
+  } else {
+    slowFrameSeconds = Math.max(0, slowFrameSeconds - frameSeconds * 0.5);
+    stableFrameSeconds = 0;
+  }
+
+  if (pixelRatioCooldown > 0) return;
+  if (slowFrameSeconds >= 2.2 && activePixelRatio > 0.86) {
+    activePixelRatio = Math.max(0.85, Math.round((activePixelRatio - 0.1) * 100) / 100);
+    applyPixelRatio();
+    pixelRatioCooldown = 5;
+    slowFrameSeconds = 0;
+  } else if (stableFrameSeconds >= 10 && activePixelRatio < maxPixelRatio - 0.01) {
+    activePixelRatio = Math.min(maxPixelRatio, Math.round((activePixelRatio + 0.05) * 100) / 100);
+    applyPixelRatio();
+    pixelRatioCooldown = 10;
+    stableFrameSeconds = 0;
+  }
+}
 
 function showError(error: unknown): void {
   console.error('[NEON COAST] Startup failed:', error);
@@ -49,7 +122,7 @@ function hasWebGL2(): boolean {
   }
 }
 
-function initialize(): void {
+async function initialize(): Promise<void> {
   disposed = false;
   loading.classList.remove('hidden');
   errorScreen.classList.add('hidden');
@@ -59,32 +132,41 @@ function initialize(): void {
   loadingMessage.textContent = 'Building the waterfront district…';
   worldScene = new THREE.Scene();
   const world = createWorld();
+  worldScene.background = new THREE.Color('#e7aa96');
+  worldScene.fog = world.root.userData.fog instanceof THREE.Fog ? world.root.userData.fog : null;
   worldScene.add(world.root);
-  player = world.player;
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+  maxPixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+  activePixelRatio = maxPixelRatio;
+  renderer.setPixelRatio(activePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.15;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // The sun direction and static city geometry do not change; moving actors use contact shadows.
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = true;
   renderer.domElement.id = 'game-canvas';
   gameRoot.replaceChildren(renderer.domElement);
 
-  cameraRig = new FollowCamera(worldScene, player);
+  playerController = new PlayerController(world.player, world.collisionBoxes);
+  loadingMessage.textContent = 'Loading the rigged protagonist and animation clips…';
+  await playerController.loadCharacter();
+
+  vehicleController = new VehicleController(world.root, playerController, world.collisionBoxes);
+  environmentController = new EnvironmentController(worldScene, world.root, renderer);
+  cameraRig = new FollowCamera(worldScene, world.player);
   input = new InputManager(renderer.domElement);
   const clock = new THREE.Clock();
-  const move = new THREE.Vector3();
-  const forward = new THREE.Vector3();
-  const right = new THREE.Vector3();
-  const targetPosition = new THREE.Vector3();
 
   const onResize = (): void => {
     if (!renderer || !cameraRig) return;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    maxPixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+    activePixelRatio = Math.min(activePixelRatio, maxPixelRatio);
+    applyPixelRatio();
     cameraRig.resize(window.innerWidth, window.innerHeight);
   };
   const onContextLost = (event: Event): void => {
@@ -100,82 +182,150 @@ function initialize(): void {
     window.removeEventListener('resize', onResize);
     document.removeEventListener('visibilitychange', onVisibility);
     input?.dispose();
+    ambienceAudio.dispose();
     renderer?.dispose();
   }, { once: true });
 
   startButton.addEventListener('click', () => {
     started = true;
+    paused = false;
+    ambienceAudio.start();
     startScreen.classList.add('hidden');
     hud.classList.remove('hidden');
     input?.requestPointerLock();
   });
   unlockButton.addEventListener('click', () => input?.releasePointerLock());
-  document.addEventListener('pointerlockchange', () => {
-    if (document.pointerLockElement !== renderer?.domElement && started && !document.hidden) {
-      // Keep the world running while the cursor is free; clicking the canvas resumes look control.
-    }
+  const updateTimeButton = (): void => { timeButton.textContent = 'TIME: ' + (environmentController?.currentMode ?? 'auto').toUpperCase(); };
+  timeButton.addEventListener('click', () => { environmentController?.cycleMode(); updateTimeButton(); });
+  audioButton.addEventListener('click', () => {
+    ambienceAudio.setMuted(!ambienceAudio.isMuted);
+    audioButton.textContent = ambienceAudio.isMuted ? 'SOUND: OFF' : 'SOUND: ON';
+    if (!ambienceAudio.isMuted && started) ambienceAudio.start();
   });
+  const openPauseMenu = (): void => {
+    if (!started) return;
+    paused = true;
+    pauseScreen.classList.remove('hidden');
+    helpPanel.classList.add('hidden');
+    input?.releasePointerLock();
+  };
+  const closePauseMenu = (): void => { paused = false; pauseScreen.classList.add('hidden'); input?.requestPointerLock(); };
+  pauseButton.addEventListener('click', openPauseMenu);
+  resumeButton.addEventListener('click', closePauseMenu);
+  helpButton.addEventListener('click', () => {
+    paused = true;
+    pauseScreen.classList.add('hidden');
+    helpPanel.classList.remove('hidden');
+    input?.releasePointerLock();
+  });
+  closeHelpButton.addEventListener('click', () => {
+    helpPanel.classList.add('hidden');
+    paused = false;
+    input?.requestPointerLock();
+  });
+  byId<HTMLButtonElement>('menu-time-button').addEventListener('click', () => {
+    environmentController?.cycleMode();
+    updateTimeButton();
+  });
+  byId<HTMLButtonElement>('menu-audio-button').addEventListener('click', () => {
+    ambienceAudio.setMuted(!ambienceAudio.isMuted);
+    audioButton.textContent = ambienceAudio.isMuted ? 'SOUND: OFF' : 'SOUND: ON';
+    if (!ambienceAudio.isMuted && started) ambienceAudio.start();
+  });
+  byId<HTMLButtonElement>('restart-button').addEventListener('click', () => window.location.reload());
+  updateTimeButton();
   renderer.domElement.addEventListener('click', () => {
     if (started && document.pointerLockElement !== renderer?.domElement) input?.requestPointerLock();
   });
   byId<HTMLButtonElement>('retry-button').addEventListener('click', () => window.location.reload());
 
   const animate = (): void => {
-    if (disposed || !renderer || !worldScene || !player || !cameraRig || !input) return;
+    if (disposed || !renderer || !worldScene || !playerController || !cameraRig || !input) return;
     animationFrame = window.requestAnimationFrame(animate);
-    const dt = Math.min(clock.getDelta(), 0.05);
+    const rawDelta = clock.getDelta();
+    const frameMilliseconds = rawDelta * 1000;
+    adaptPixelRatio(rawDelta, frameMilliseconds);
+    const dt = Math.min(rawDelta, 0.05);
     const elapsed = clock.elapsedTime;
-    world.update(dt, elapsed);
+    const environmentFocus = vehicleController?.isDriving ? vehicleController.object.position : world.player.position;
+    world.update(dt, elapsed, environmentFocus);
+    environmentController?.update(dt, environmentFocus);
+    ambienceAudio.updateNight(environmentController?.nightAmount ?? 0.15);
 
-    if (started && !document.hidden) {
+    if (started && !paused && !document.hidden) {
+      vehicleController?.update(dt, input.keys);
+      cameraRig.setTarget(vehicleController?.isDriving ? vehicleController.object : world.player, Boolean(vehicleController?.isDriving));
       cameraRig.update(dt, input.lookDeltaX, input.lookDeltaY, input.zoomDelta);
       input.consumeMouseDeltas();
-      const keys = input.keys;
-      forward.set(-Math.sin(cameraRig.yaw), 0, -Math.cos(cameraRig.yaw));
-      right.set(Math.cos(cameraRig.yaw), 0, -Math.sin(cameraRig.yaw));
-      move.set(0, 0, 0);
-      if (keys.has('KeyW')) move.add(forward);
-      if (keys.has('KeyS')) move.sub(forward);
-      if (keys.has('KeyD')) move.add(right);
-      if (keys.has('KeyA')) move.sub(right);
-      if (move.lengthSq() > 0) {
-        move.normalize();
-        const speed = keys.has('ShiftLeft') || keys.has('ShiftRight') ? 10 : 5.5;
-        targetPosition.copy(player.position).addScaledVector(move, speed * dt);
-        // Milestone A movement is deliberately a simple prototype controller; collision/physics arrive later.
-        targetPosition.x = THREE.MathUtils.clamp(targetPosition.x, -105, 105);
-        targetPosition.z = THREE.MathUtils.clamp(targetPosition.z, -105, 105);
-        player.position.copy(targetPosition);
-        player.rotation.y = Math.atan2(move.x, move.z);
-      }
+      if (!vehicleController?.isDriving) playerController.update(dt, input.keys, cameraRig.yaw);
+      currentCityPrompt = vehicleController?.isDriving ? '' : world.interact(world.player.position, input.keys);
     } else {
       cameraRig.update(dt, 0, 0, 0);
     }
 
     cameraRig.follow(dt);
     renderer.render(worldScene, cameraRig.camera);
-    if (elapsed - lastHudUpdate > 0.15 && started) {
-      positionReadout.textContent = `X ${player.position.x.toFixed(1)} · Z ${player.position.z.toFixed(1)}`;
+    if (diagnosticsPanel && elapsed - lastDiagnosticsUpdate > 0.25) {
+      const position = vehicleController?.isDriving ? vehicleController.object.position : world.player.position;
+      const fps = frameTimeEmaMs > 0 ? 1000 / frameTimeEmaMs : 0;
+      diagnosticsPanel.textContent = [
+        'NEON COAST · DEBUG',
+        `FPS (EMA): ${fps.toFixed(1)}`,
+        `Frame time: ${frameTimeEmaMs.toFixed(1)} ms`,
+        `Pixel ratio: ${activePixelRatio.toFixed(2)} / ${maxPixelRatio.toFixed(2)}`,
+        `Draw calls: ${renderer.info.render.calls}`,
+        `Triangles: ${renderer.info.render.triangles.toLocaleString()}`,
+        `Geometries / textures: ${renderer.info.memory.geometries} / ${renderer.info.memory.textures}`,
+        `World position: ${position.x.toFixed(0)}, ${position.z.toFixed(0)}`,
+        `NPC systems: disabled`,
+      ].join('\n');
+      lastDiagnosticsUpdate = elapsed;
+    }
+    if (elapsed - lastHudUpdate > 0.15 && started && !paused) {
+      const position = world.player.position;
+      positionReadout.textContent = vehicleController?.isDriving
+        ? `DRIVING · ${vehicleController.speedKmh} KM/H`
+        : `X ${position.x.toFixed(1)} · Z ${position.z.toFixed(1)} · ${playerController.isUsingRiggedCharacter ? 'RIGGED' : 'FALLBACK'}`;
+      const vehiclePrompt = document.getElementById('vehicle-prompt');
+      const cityPrompt = document.getElementById('city-prompt');
+      const driving = Boolean(vehicleController?.isDriving);
+      vehicleDashboard.classList.toggle('hidden', !driving);
+      if (driving && vehicleController) {
+        speedValue.textContent = String(vehicleController.speedKmh);
+        speedGear.textContent = vehicleController.signedSpeed < -0.35 ? 'R' : vehicleController.speedKmh < 2 ? 'N' : 'D';
+        speedFill.style.width = `${Math.min(100, (vehicleController.speedKmh / 160) * 100)}%`;
+        speedFill.classList.toggle('speed-fill-high', vehicleController.speedKmh >= 110);
+      } else {
+        speedValue.textContent = '0';
+        speedFill.style.width = '0%';
+        speedFill.classList.remove('speed-fill-high');
+      }
+      if (cityPrompt) {
+        cityPrompt.textContent = currentCityPrompt;
+        cityPrompt.classList.toggle('visible', Boolean(currentCityPrompt));
+      }
+      if (vehiclePrompt) {
+        vehiclePrompt.textContent = vehicleController?.isDriving
+          ? 'W ACCELERATE · S BRAKE / REVERSE · A / D STEER · SPACE HANDBRAKE · E EXIT · MOUSE LOOK'
+          : vehicleController?.nearVehicle ? 'PRESS E TO ENTER THE COUPE' : '';
+        vehiclePrompt.classList.toggle('visible', Boolean(vehicleController?.isDriving || vehicleController?.nearVehicle));
+      }
       lastHudUpdate = elapsed;
     }
   };
 
-  loadingMessage.textContent = 'Renderer ready. Finalizing controls…';
-  clock.start();
   loading.classList.add('hidden');
   startScreen.classList.remove('hidden');
+  clock.start();
   animate();
 }
 
-try {
-  initialize();
-} catch (error) {
-  showError(error);
-}
+void initialize().catch(showError);
 
 window.addEventListener('pagehide', () => {
   disposed = true;
   window.cancelAnimationFrame(animationFrame);
   input?.dispose();
+  ambienceAudio.dispose();
   renderer?.dispose();
 });
