@@ -279,7 +279,7 @@ export function createWorld(): WorldBundle {
     addBox('Diner entrance planter', right + 1.1, 0.1, z, 0.7, 0.55, 0.7, mat('#9b7055'), true);
     const shrub = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 6), palmLeafMaterial);
     shrub.position.set(right + 1.1, 0.75, z);
-    root.add(shrub);
+    centralDistrict.add(shrub);
   }
 
   // Palm geometry is instanced to keep draw calls manageable across the whole district.
@@ -315,14 +315,14 @@ export function createWorld(): WorldBundle {
       addBox('Street lamp post', x, 0, z, 0.12, 4.4, 0.12, darkMetal, true);
       const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), warmLamp);
       lamp.position.set(x, 4.5, z);
-      root.add(lamp);
+      centralDistrict.add(lamp);
       animated.push({ object: lamp, baseY: lamp.position.y, phase: z * 0.1 + x, amplitude: 0.025 });
       if (x === 24.8 && z % 60 === 30) {
         const pool = new THREE.PointLight('#ffc985', 0.65, 18, 2);
         pool.position.set(x, 4.2, z);
         pool.userData.environmentLamp = true;
         pool.userData.baseIntensity = 0.65;
-        root.add(pool);
+        centralDistrict.add(pool);
       }
       if (x !== 24.8) {
         addBox('Sidewalk bench seat', x + (x < 0 ? -0.9 : 0.9), 0.45, z + 2.5, 1.7, 0.14, 0.48, mat('#8c5a43'), true);
