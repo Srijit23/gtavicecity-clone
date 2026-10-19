@@ -34,9 +34,16 @@
 - [x] Add scene fog and instance repeated foliage/window geometry to control visual depth and draw calls
 - [ ] Verify the district is explorable, all collision boundaries and diner entry/interactions work, and measure FPS on target hardware
 
-## Milestone E and beyond
-- [ ] NPCs and civilian traffic
-- [ ] NPCs and civilian traffic
+## Milestone E: World Population
+- [x] Add a fixed-size pool of 18 procedural pedestrians with simple walking limb animation
+- [x] Route pedestrians through a connected sidewalk/crosswalk waypoint graph using breadth-first pathfinding
+- [x] Add local pedestrian separation and obstacle checks with re-routing when a waypoint is blocked
+- [x] Add 8 pooled civilian vehicles on the boulevard with lane-following, spacing, and player/crosswalk yielding
+- [x] Throttle simulation to 20 updates per second and use active/visible distance bands around the player
+- [x] Reuse shared geometry/materials and keep population counts fixed to avoid uncontrolled entity growth
+- [ ] Verify NPC movement, traffic yielding, visual pop-in, and performance in a real browser
+
+## Milestone F and beyond
 - [ ] Missions, navigation, shops, progression, and saving
 - [ ] Audio, day/night cycle, settings, optimization, and release validation
 
