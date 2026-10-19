@@ -164,7 +164,6 @@ async function initialize(): Promise<void> {
     maxPixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
     activePixelRatio = Math.min(activePixelRatio, maxPixelRatio);
     applyPixelRatio();
-    renderer.setSize(window.innerWidth, window.innerHeight);
     cameraRig.resize(window.innerWidth, window.innerHeight);
   };
   const onContextLost = (event: Event): void => {
@@ -276,7 +275,7 @@ async function initialize(): Promise<void> {
         `Geometries / textures: ${renderer.info.memory.geometries} / ${renderer.info.memory.textures}`,
         `World position: ${position.x.toFixed(0)}, ${position.z.toFixed(0)}`,
         `NPC systems: disabled`,
-      ].join('\\n');
+      ].join('\n');
       lastDiagnosticsUpdate = elapsed;
     }
     if (elapsed - lastHudUpdate > 0.15 && started && !paused) {
