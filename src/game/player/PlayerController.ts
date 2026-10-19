@@ -3,7 +3,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const CHARACTER_URL = 'https://threejs.org/examples/models/gltf/Soldier.glb';
 const PLAYER_RADIUS = 0.38;
-const PLAYER_HEIGHT = 1.9;
+const PLAYER_HEIGHT = 1.82;
+const CHARACTER_TARGET_HEIGHT = 1.78;
+const MODEL_FORWARD_CORRECTION = Math.PI;
 const WALK_SPEED = 4.2;
 const RUN_SPEED = 8.8;
 const GROUND_Y = 0.12;
@@ -16,6 +18,8 @@ export class PlayerController {
   private readonly collisionBoxes: THREE.Box3[];
   private readonly fallback: THREE.Group;
   private readonly modelRoot = new THREE.Group();
+  private readonly contactShadow: THREE.Mesh;
+  private readonly shadowMaterial: THREE.MeshBasicMaterial;
   private readonly actions = new Map<string, THREE.AnimationAction>();
   private readonly velocity = new THREE.Vector3();
   private readonly desiredVelocity = new THREE.Vector3();
@@ -35,6 +39,19 @@ export class PlayerController {
     this.fallback = this.createFallback();
     this.object.add(this.fallback);
     this.object.add(this.modelRoot);
+    this.shadowMaterial = new THREE.MeshBasicMaterial({
+      color: '#17202b',
+      transparent: true,
+      opacity: 0.32,
+      depthWrite: false,
+      map: this.createShadowTexture(),
+    });
+    this.contactShadow = new THREE.Mesh(new THREE.PlaneGeometry(1.45, 0.92), this.shadowMaterial);
+    this.contactShadow.name = 'Player contact shadow';
+    this.contactShadow.rotation.x = -Math.PI / 2;
+    this.contactShadow.position.y = 0.006;
+    this.contactShadow.renderOrder = 2;
+    this.object.add(this.contactShadow);
     this.mixer = new THREE.AnimationMixer(this.modelRoot);
   }
 
@@ -54,9 +71,21 @@ export class PlayerController {
           node.receiveShadow = true;
         }
       });
-      this.modelRoot.add(gltf.scene);
-      this.modelRoot.scale.setScalar(1);
+      // Normalize the imported model to a human-sized height and align its actual
+      // lowest mesh point with the character root's ground-contact plane.
+      gltf.scene.updateMatrixWorld(true);
+      const modelBounds = new THREE.Box3().setFromObject(gltf.scene);
+      const modelSize = new THREE.Vector3();
+      modelBounds.getSize(modelSize);
+      const sourceHeight = Math.max(modelSize.y, 0.001);
+      const normalizedScale = CHARACTER_TARGET_HEIGHT / sourceHeight;
+      this.modelRoot.scale.setScalar(normalizedScale);
       this.modelRoot.position.set(0, 0, 0);
+      gltf.scene.position.y = -modelBounds.min.y;
+      // Soldier.glb's authored forward axis is opposite the controller's +Z facing
+      // convention. Correct only the visual rig so velocity and facing stay coherent.
+      this.modelRoot.rotation.y = MODEL_FORWARD_CORRECTION;
+      this.modelRoot.add(gltf.scene);
 
       for (const clip of gltf.animations) {
         const name = clip.name.toLowerCase();
@@ -181,7 +210,12 @@ export class PlayerController {
     if (!next) return;
     next.reset();
     next.enabled = true;
-    next.setEffectiveTimeScale(1);
+    const horizontalSpeed = Math.hypot(this.velocity.x, this.velocity.z);
+    const nominalSpeed = state === 'run' ? 5.4 : state === 'walk' ? 2.4 : 1;
+    const gaitRate = state === 'walk' || state === 'run'
+      ? THREE.MathUtils.clamp(horizontalSpeed / nominalSpeed, 0.72, 1.65)
+      : 1;
+    next.setEffectiveTimeScale(gaitRate);
     next.setEffectiveWeight(1);
     next.play();
     if (this.currentAction && this.currentAction !== next) next.crossFadeFrom(this.currentAction, 0.18, true);
@@ -201,6 +235,24 @@ export class PlayerController {
       if (dx * dx + dz * dz < PLAYER_RADIUS * PLAYER_RADIUS) return true;
     }
     return false;
+  }
+
+  private createShadowTexture(): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const context = canvas.getContext('2d');
+    if (context) {
+      const gradient = context.createRadialGradient(64, 64, 4, 64, 64, 62);
+      gradient.addColorStop(0, 'rgba(12, 20, 30, 0.58)');
+      gradient.addColorStop(0.42, 'rgba(12, 20, 30, 0.28)');
+      gradient.addColorStop(1, 'rgba(12, 20, 30, 0)');
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, 128, 128);
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
   }
 
   private createFallback(): THREE.Group {
