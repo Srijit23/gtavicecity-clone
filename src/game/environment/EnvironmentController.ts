@@ -11,6 +11,7 @@ export class EnvironmentController {
   private readonly hemisphere: THREE.HemisphereLight;
   private readonly skyMaterial: THREE.MeshBasicMaterial;
   private readonly fog: THREE.Fog;
+  private readonly nightLights: THREE.PointLight[] = [];
   private mode: TimeOfDay = 'auto';
   private elapsed = 0;
   private night = 0.15;
@@ -33,6 +34,10 @@ export class EnvironmentController {
     root.traverse((object) => {
       if (object instanceof THREE.DirectionalLight && !sun) sun = object;
       if (object instanceof THREE.HemisphereLight && !hemi) hemi = object;
+      if (object instanceof THREE.PointLight && object.userData.environmentLamp) this.nightLights.push(object);
+      if (object instanceof THREE.PointLight && (object.color.getHexString() === 'ff65bb' || object.color.getHexString() === 'ffdda7')) {
+        object.userData.baseIntensity = object.intensity;
+      }
     });
     if (!sun || !hemi) throw new Error('World lighting rig is missing its sun or hemisphere light.');
     this.sun = sun;
@@ -83,13 +88,9 @@ export class EnvironmentController {
     this.hemisphere.groundColor.set('#292c49').lerp(new THREE.Color('#bf8d70'), daylight);
     this.renderer.toneMappingExposure = 0.82 + daylight * 0.34;
     // Street lamps and neon accents stay visible after dark without overpowering daytime.
-    this.root.traverse((object) => {
-      if (object instanceof THREE.PointLight) {
-        const isDiner = object.color.getHexString() === 'ff65bb' || object.color.getHexString() === 'ffdda7';
-        if (isDiner) object.intensity = object.userData.baseIntensity ?? object.intensity;
-        else if (object.userData.environmentLamp) object.intensity = (object.userData.baseIntensity ?? 1) * (0.12 + night * 1.9);
-      }
-    });
+    for (const light of this.nightLights) {
+      light.intensity = (light.userData.baseIntensity ?? 0.65) * (0.12 + night * 1.9);
+    }
   }
 }
 
@@ -99,12 +100,8 @@ export class AmbienceAudio {
   private master?: GainNode;
   private started = false;
   private muted = false;
-  private noiseGain?: GainNode;
-  private lowGain?: GainNode;
   private nightGain?: GainNode;
   private noiseFilter?: BiquadFilterNode;
-  private oscillator?: OscillatorNode;
-  private nightOscillator?: OscillatorNode;
 
   start(): void {
     if (this.started) {
@@ -150,12 +147,8 @@ export class AmbienceAudio {
     nightOscillator.start();
     this.context = context;
     this.master = master;
-    this.noiseGain = noiseGain;
-    this.lowGain = lowGain;
     this.nightGain = nightGain;
     this.noiseFilter = filter;
-    this.oscillator = oscillator;
-    this.nightOscillator = nightOscillator;
     this.started = true;
   }
 
