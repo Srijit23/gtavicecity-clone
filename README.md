@@ -1,6 +1,6 @@
 # NEON COAST
 
-A browser-based 3D open-world coastal-city prototype built with Vite, TypeScript, and Three.js. It includes a rigged player, arcade-style driving, a detailed red concept-car model with animated wheels, a compact procedural city, pedestrians and civilian traffic, a walk-in diner, day/night lighting, and synthesized coastal ambience.
+A browser-based 3D open-world coastal-city prototype built with Vite, TypeScript, and Three.js. It includes a rigged player, arcade-style driving, a lightweight low-poly red saloon with vehicle animation, a compact procedural city, pedestrians and civilian traffic, a walk-in diner, day/night lighting, and synthesized coastal ambience.
 
 ## Requirements
 - Node.js 20 or newer
@@ -32,7 +32,7 @@ npm run preview
 ## Current scope
 - Rigged humanoid with idle/walk/run animation handling, grounded movement, jumping, and collision
 - Custom arcade driving controller with acceleration, braking/reverse, speed-sensitive steering, vehicle camera, and km/h speedometer
-- Red concept-car GLB with named front/rear wheel pivots; front wheels steer and all wheels roll with speed
+- Low-poly red saloon GLB (CC0) normalized in native Y-up coordinates; driving physics and speedometer stay controller-owned, with model-authored rolling animation when available
 - Compact art-deco waterfront district, promenade, beach, and enterable diner
 - Pooled pedestrians and civilian boulevard traffic
 - Automatic day/night lighting and manual day/sunset/night presets, plus synthesized coastal ambience
