@@ -43,8 +43,17 @@
 - [x] Reuse shared geometry/materials and keep population counts fixed to avoid uncontrolled entity growth
 - [ ] Verify NPC movement, traffic yielding, visual pop-in, and performance in a real browser
 
-## Milestone F and beyond
+## Milestone F: Presentation
+- [x] Add an automatic day/night cycle plus manual day, sunset, and night presets
+- [x] Blend sky dome, scene background, fog, sun color/intensity, hemisphere fill, and tone-mapping exposure
+- [x] Add a small set of distance-limited promenade light pools that brighten after dark
+- [x] Synthesize coastal surf/hum ambience and night ambience locally with Web Audio, with a working mute toggle
+- [x] Add connected HUD controls for time-of-day, sound, help, pause, resume, mouse unlock, and restart
+- [x] Add a pause menu and quick-controls panel; pause player/population simulation while menus are open
+- [ ] Verify visual/audio balance, all UI interactions, and performance in a real browser
+
+## Milestone G and beyond
 - [ ] Missions, navigation, shops, progression, and saving
-- [ ] Audio, day/night cycle, settings, optimization, and release validation
+- [ ] Settings persistence, audio mix options, accessibility, optimization, and release validation
 
 Checkboxes are updated only when the corresponding work is present in the repository; browser/hardware checks remain pending until run in a suitable environment.
