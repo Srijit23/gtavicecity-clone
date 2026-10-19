@@ -20,7 +20,6 @@ export class PlayerController {
   private readonly velocity = new THREE.Vector3();
   private readonly desiredVelocity = new THREE.Vector3();
   private readonly candidate = new THREE.Vector3();
-  private readonly up = new THREE.Vector3(0, 1, 0);
   private currentAction: THREE.AnimationAction | undefined;
   private currentState: PlayerState = 'idle';
   private verticalVelocity = 0;
@@ -67,6 +66,35 @@ export class PlayerController {
           : name.includes('idle') ? 'idle'
           : '';
         if (key && !this.actions.has(key)) this.actions.set(key, this.mixer.clipAction(clip));
+      }
+      if (!this.actions.has('jump')) {
+        const jumpTracks: THREE.QuaternionKeyframeTrack[] = [];
+        const times = [0, 0.12, 0.36, 0.68];
+        gltf.scene.traverse((node) => {
+          if (!(node instanceof THREE.Bone)) return;
+          const name = node.name.toLowerCase();
+          const isArm = name.includes('leftarm') || name.includes('rightarm');
+          const isLeg = name.includes('leftupleg') || name.includes('rightupleg');
+          if (!isArm && !isLeg) return;
+          const rest = node.quaternion.clone();
+          const pose = rest.clone().multiply(new THREE.Quaternion().setFromEuler(
+            new THREE.Euler(isArm ? -0.85 : -0.42, 0, isArm && name.includes('left') ? -0.12 : isArm ? 0.12 : 0),
+          ));
+          const values = [
+            rest.x, rest.y, rest.z, rest.w,
+            pose.x, pose.y, pose.z, pose.w,
+            pose.x, pose.y, pose.z, pose.w,
+            rest.x, rest.y, rest.z, rest.w,
+          ];
+          jumpTracks.push(new THREE.QuaternionKeyframeTrack(`${node.name}.quaternion`, times, values));
+        });
+        if (jumpTracks.length > 0) {
+          const jumpClip = new THREE.AnimationClip('ProceduralJump', 0.68, jumpTracks);
+          const jumpAction = this.mixer.clipAction(jumpClip);
+          jumpAction.setLoop(THREE.LoopOnce, 1);
+          jumpAction.clampWhenFinished = true;
+          this.actions.set('jump', jumpAction);
+        }
       }
       this.fallback.visible = false;
       this.loaded = true;
@@ -153,7 +181,7 @@ export class PlayerController {
     if (!next) return;
     next.reset();
     next.enabled = true;
-    next.setEffectiveTimeScale(state === 'jump' && !this.actions.has('jump') ? 0.8 : 1);
+    next.setEffectiveTimeScale(1);
     next.setEffectiveWeight(1);
     next.play();
     if (this.currentAction && this.currentAction !== next) next.crossFadeFrom(this.currentAction, 0.18, true);
