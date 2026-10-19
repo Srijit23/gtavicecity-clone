@@ -1,4 +1,4 @@
-# Known limitations after Milestone E
+# Known limitations after Milestone F
 
 - The rigged Soldier model and its animation clips load at runtime from the Three.js example asset host; gameplay requires network access to that asset URL. A procedural fallback character remains available if the download fails or times out.
 - The model source provides idle, walk, and run clips. The controller corrects the model's forward-axis mismatch, normalizes imported height, aligns the lowest mesh point to the ground plane, adjusts gait playback rate, and adds a soft procedural contact shadow. If no dedicated jump clip is present, it synthesizes a simple jump pose from rig bones; this is less polished than a purpose-authored jump/fall/land set.
@@ -8,4 +8,7 @@
 - Population updates are capped at 20 Hz. Entities outside the active radius pause and become invisible beyond the visibility radius; they are pooled rather than spawned indefinitely. A dormant entity can resume from its last location, and no persistent crowd schedules or memory across sessions are stored.
 - Camera obstruction uses raycasts against marked scene objects without a spatial index; this is suitable for the small test district but should be optimized as the world grows.
 - The district remains a compact procedural prototype rather than a full city. The Coastline Diner is the only enterable interior and has one simple coffee interaction. Missions, save system, police/wanted system, and player-drivable vehicle selection are not implemented.
-- Manual Chrome gameplay verification of vehicle entry/exit, city collision, diner access/interactions, pedestrian navigation, traffic yielding, and target-hardware FPS remains pending.
+- The day/night cycle blends the sun, hemisphere fill, sky dome, fog, exposure, and a few promenade light pools. Most building/window emissive materials are not yet animated independently, and this is not a physically based sky/atmosphere simulation.
+- Ambience is synthesized locally with Web Audio (filtered surf-like noise, a low coastal hum, and a subtle high night tone); it is not recorded environmental audio and there are no vehicle, footstep, NPC voice, or collision sound effects yet. Browser audio begins only after the user presses the start button.
+- Time-of-day presets are session-only. The pause menu stops player/population updates but the environment cycle continues in the background; user settings are not persisted between reloads.
+- Manual Chrome gameplay verification of vehicle entry/exit, city collision, diner access/interactions, pedestrian navigation, traffic yielding, day/night appearance, audio levels, UI interactions, and target-hardware FPS remains pending.
