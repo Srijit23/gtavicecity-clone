@@ -245,8 +245,8 @@ async function initialize(): Promise<void> {
     adaptPixelRatio(rawDelta, frameMilliseconds);
     const dt = Math.min(rawDelta, 0.05);
     const elapsed = clock.elapsedTime;
-    world.update(dt, elapsed, environmentFocus);
     const environmentFocus = vehicleController?.isDriving ? vehicleController.object.position : world.player.position;
+    world.update(dt, elapsed, environmentFocus);
     environmentController?.update(dt, environmentFocus);
     ambienceAudio.updateNight(environmentController?.nightAmount ?? 0.15);
 
