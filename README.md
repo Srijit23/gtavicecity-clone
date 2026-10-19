@@ -38,7 +38,8 @@ npm run preview
 - **Expanded map:** an 850 × 850 ground footprint, approximately 9.9× the previous 270 × 270 ground plane, with a longer coastal boulevard and a connected outer collector-road grid.
 - **Residential architecture:** deterministic low-poly homes with gabled roofs, porches, windows, foundations, driveways and garden shrubs, plus distance-grouped residential areas.
 - **Additional districts:** apartment blocks with balcony details, commercial storefronts, a school and sports court, a park with trees/playground/swimming pool, and a warehouse.
-- **Rendering efficiency:** shared box geometry, cached standard materials, instanced repeating road marks, railing posts, windows, foliage, clouds, and house components, plus coarse distance-based district/detail visibility.
+- **Rendering efficiency:** shared box geometry, cached standard materials, instanced repeating road marks, railing posts, windows, foliage, clouds, and house components; coarse distance-based district/detail visibility; local spatial grids for player/car collision checks; and cached world-space camera-obstacle spheres to reduce raycast candidates.
+- **Shadow cost control:** cache the static city's directional shadow map instead of updating it every frame. Moving player/car actors use contact-shadow planes rather than dynamic shadow-map casting.
 - **Adaptive rendering:** a device-capped pixel ratio up to 1.5 that reduces in steps after sustained slow frames and recovers more cautiously after sustained stable frames.
 - **Debug metrics:** append `?debug=1` to the game URL to display FPS/frame-time estimates, renderer draw calls and triangles, geometry/texture counts, pixel ratio and world position.
 - **Sky and lighting:** a shader-based sky gradient, one instanced low-poly cloud layer with slow movement, sun/moon discs that follow the active player/camera area, day/night lighting, fog and the existing ambience system.
