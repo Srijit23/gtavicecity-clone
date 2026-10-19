@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PlayerController } from '../player/PlayerController';
 
 const GROUND_Y = 0.12;
 const VEHICLE_HALF_WIDTH = 1.02;
@@ -11,6 +12,7 @@ export class VehicleController {
   readonly object: THREE.Group;
   private readonly world: THREE.Group;
   private readonly player: THREE.Group;
+  private readonly playerController: PlayerController;
   private readonly collisionBoxes: THREE.Box3[];
   private readonly wheels: WheelAssembly[] = [];
   private readonly raycaster = new THREE.Raycaster();
@@ -28,9 +30,10 @@ export class VehicleController {
   private readonly headlight = new THREE.MeshStandardMaterial({ color: '#fff2c9', emissive: '#ffe5a1', emissiveIntensity: 2.2, roughness: 0.2 });
   private readonly taillight = new THREE.MeshStandardMaterial({ color: '#e52d4c', emissive: '#ed173d', emissiveIntensity: 1.5, roughness: 0.3 });
 
-  constructor(world: THREE.Group, player: THREE.Group, collisionBoxes: THREE.Box3[]) {
+  constructor(world: THREE.Group, playerController: PlayerController, collisionBoxes: THREE.Box3[]) {
     this.world = world;
-    this.player = player;
+    this.playerController = playerController;
+    this.player = playerController.object;
     this.collisionBoxes = collisionBoxes;
     this.object = new THREE.Group();
     this.object.name = 'Pink coastal coupe';
@@ -46,7 +49,7 @@ export class VehicleController {
     if (!this.driving && enterPressed && this.player.position.distanceTo(this.object.position) <= ENTER_DISTANCE) {
       this.driving = true;
       this.speed = 0;
-      this.player.visible = false;
+      this.playerController.setVehicleMode(true);
     } else if (this.driving && enterPressed) {
       this.exitVehicle();
     }
@@ -99,8 +102,7 @@ export class VehicleController {
       candidate.copy(this.object.position).add(new THREE.Vector3(0, 0, 2.6));
       candidate.y = GROUND_Y;
     }
-    this.player.position.copy(candidate);
-    this.player.visible = true;
+    this.playerController.teleport(candidate);
     this.driving = false;
     this.speed = 0;
   }
