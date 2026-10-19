@@ -110,6 +110,7 @@ function placeBox(
   mesh.castShadow = false;
   mesh.receiveShadow = true;
   mesh.userData.playerCollision = obstacle;
+  mesh.userData.cameraObstacle = obstacle;
   parent.add(mesh);
   if (obstacle && collisionBoxes) {
     mesh.updateMatrixWorld(true);
@@ -209,8 +210,10 @@ function makeHousingZone(
   const bushMat = material('#ffffff', 0.96);
 
   addInstances(root, name + ' foundations', boxGeometry, material('#b8aa98'), foundations);
-  addInstances(root, name + ' house shells', boxGeometry, shellMat, shells, shellColors);
-  addInstances(root, name + ' pitched roofs', roofGeo, roofMat, roofs, roofColors);
+  const shellInstances = addInstances(root, name + ' house shells', boxGeometry, shellMat, shells, shellColors);
+  if (shellInstances) shellInstances.userData.cameraObstacle = true;
+  const roofInstances = addInstances(root, name + ' pitched roofs', roofGeo, roofMat, roofs, roofColors);
+  if (roofInstances) roofInstances.userData.cameraObstacle = true;
   addInstances(root, root.name + ' gardens', boxGeometry, lawnMat, lawns, lawnColors);
   addInstances(root, root.name + ' driveways', boxGeometry, drivewayMat, driveways);
   addInstances(details, root.name + ' window frames', boxGeometry, frameMat, windowFrames);
