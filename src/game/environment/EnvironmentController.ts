@@ -133,9 +133,15 @@ export class EnvironmentController {
     const solarAngle = phase * Math.PI * 2;
     const lunarAngle = solarAngle + Math.PI;
     this.sun.position.set(Math.cos(solarAngle) * 72, 8 + daylight * 48, Math.sin(solarAngle) * 72);
-    this.sunDisc?.position.set(Math.cos(solarAngle) * 760, 130 + Math.sin(solarAngle) * 430, -360).add(focusPosition ?? new THREE.Vector3());
+    if (this.sunDisc) {
+      this.sunDisc.position.set(Math.cos(solarAngle) * 760, 130 + Math.sin(solarAngle) * 430, -360);
+      if (focusPosition) this.sunDisc.position.add(focusPosition);
+    }
     if (this.sunDisc) this.sunDisc.visible = Math.sin(solarAngle) > -0.08;
-    this.moonDisc?.position.set(Math.cos(lunarAngle) * 760, 130 + Math.sin(lunarAngle) * 430, -360).add(focusPosition ?? new THREE.Vector3());
+    if (this.moonDisc) {
+      this.moonDisc.position.set(Math.cos(lunarAngle) * 760, 130 + Math.sin(lunarAngle) * 430, -360);
+      if (focusPosition) this.moonDisc.position.add(focusPosition);
+    }
     if (this.moonDisc) this.moonDisc.visible = night > 0.38 && Math.sin(lunarAngle) > -0.08;
     if (this.cloudLayer) this.cloudLayer.rotation.y += dt * 0.0009;
     if (this.cloudMaterial) this.cloudMaterial.opacity = 0.06 + daylight * 0.3;
