@@ -8,8 +8,16 @@ const VEHICLE_HALF_LENGTH = 2.15;
 const ENTER_DISTANCE = 4.5;
 
 type WheelAssembly = { pivot: THREE.Group; wheel: THREE.Group; front: boolean; side: number; restY: number };
-type ModelWheel = { pivot: THREE.Group; front: boolean };
-const REAL_CAR_MODEL_URL = 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CarConcept/glTF-Binary/CarConcept.glb';
+type ModelWheel = {
+  pivot: THREE.Object3D;
+  front: boolean;
+  baseRotationX: number;
+  baseRotationY: number;
+  baseRotationZ: number;
+  spin: number;
+};
+const REAL_CAR_MODEL_URL = `${import.meta.env.BASE_URL}models/kenney-sedan.glb`;
+const CAR_WHEEL_RADIUS = 0.31;
 
 export class VehicleController {
   readonly object: THREE.Group;
@@ -24,8 +32,6 @@ export class VehicleController {
   private readonly wheels: WheelAssembly[] = [];
   private readonly modelWheels: ModelWheel[] = [];
   private realModelLoaded = false;
-  private modelMixer: THREE.AnimationMixer | null = null;
-  private modelRollAction: THREE.AnimationAction | null = null;
   private readonly chassisBounds = new THREE.Box3();
   private speed = 0;
   private steering = 0;
@@ -46,7 +52,7 @@ export class VehicleController {
     this.collisionBoxes = collisionBoxes;
     this.staticCollisionBoxes = collisionBoxes.slice();
     this.object = new THREE.Group();
-    this.object.name = 'Red concept coupe';
+    this.object.name = 'Kenney low-poly red sedan';
     this.object.position.set(-5, GROUND_Y, 0.2);
     this.object.add(this.bodyVisual);
     this.bodyVisual.add(this.fallbackVisual);
@@ -114,7 +120,6 @@ export class VehicleController {
       }
     }
     this.suspensionPhase += dt * (2.2 + Math.abs(this.speed) * 0.8);
-    if (this.modelMixer) this.modelMixer.update(dt * THREE.MathUtils.clamp(Math.abs(this.speed) / 8, 0.12, 2.4));
     const accelerationPulse = Math.min(1, Math.abs(this.speed - oldSpeed) * 0.055);
     this.object.position.y = GROUND_Y + Math.sin(this.suspensionPhase) * (0.004 + accelerationPulse * 0.012);
     const pitchTarget = throttle ? -0.035 : brakeOrReverse && this.speed > 0 ? 0.045 : 0;
@@ -235,39 +240,67 @@ export class VehicleController {
    * Load a production-quality, named-part GLB asynchronously. The procedural coupe
    * stays visible as a fallback until the full asset and textures are ready.
    */
+  /**
+   * Load the bundled Kenney CC0 sedan. It is stored in /public/models so gameplay
+   * does not depend on an external asset CDN or third-party DNS.
+   */
   private loadRealCarModel(): void {
     const loader = new GLTFLoader();
     loader.load(
       REAL_CAR_MODEL_URL,
       (gltf) => {
-        if (!gltf.scene || !gltf.scene.children.length) return;
-
-        // Khronos CarConcept is authored Z-up with its nose along source -Y.
-        // Convert the imported content to Three.js Y-up / controller-forward -Z,
-        // leaving the normalization root unrotated for correct ground alignment.
-        const modelRoot = new THREE.Group();
-        modelRoot.name = 'Khronos Car Concept (CC BY 4.0)';
-        const modelContent = new THREE.Group();
-        modelContent.rotation.set(-Math.PI / 2, Math.PI, 0);
-        modelContent.add(gltf.scene);
-        modelRoot.add(modelContent);
-        modelRoot.updateMatrixWorld(true);
-
-        const bounds = new THREE.Box3().setFromObject(modelRoot);
-        const size = bounds.getSize(new THREE.Vector3());
-        if (bounds.isEmpty() || !Number.isFinite(size.x) || size.x <= 0 || size.y <= 0 || size.z <= 0) {
-          console.warn('[NEON COAST] Replacement car has invalid bounds; keeping procedural fallback.');
+        if (!gltf.scene || !gltf.scene.children.length) {
+          console.error('[NEON COAST] Bundled sedan GLB is empty; showing the emergency fallback.');
           return;
         }
 
-        // Normalize in the asset's native Y-up coordinates only. Never rotate the root
-        // after measuring bounds, which was the source of the previous standing-car bug.
-        const scale = Math.min(1.92 / size.x, 4.15 / size.z, 1.58 / size.y);
-        modelRoot.scale.setScalar(scale);
+        const modelRoot = new THREE.Group();
+        modelRoot.name = 'Kenney CC0 Sedan';
+        // Verified source axes: Y is up; named front wheels sit at +Z.
+        // Controller motion is along -Z, so rotate this visual asset by 180° around Y.
+        modelRoot.rotation.y = Math.PI;
+        modelRoot.scale.set(1.25, 1, 1.55);
+        modelRoot.add(gltf.scene);
+
+        // Stretch the wheelbase to fit the ~4 m chassis while keeping tire profiles round.
+        // Wheel nodes are already authored at their hubs; keep their hierarchy intact.
+        const wheelNodes: ModelWheel[] = [];
+        modelRoot.traverse((node) => {
+          if (!/^wheel-(front|back)-(left|right)$/i.test(node.name)) return;
+          const front = /^wheel-front-/i.test(node.name);
+          node.position.x *= 1.35;
+          node.position.z *= 1.3;
+          node.scale.z *= 1 / 1.55;
+          wheelNodes.push({
+            pivot: node,
+            front,
+            baseRotationX: node.rotation.x,
+            baseRotationY: node.rotation.y,
+            baseRotationZ: node.rotation.z,
+            spin: 0,
+          });
+        });
+
+        if (wheelNodes.length !== 4) {
+          console.error(`[NEON COAST] Expected four named sedan wheels but found ${wheelNodes.length}; showing the emergency fallback.`);
+          return;
+        }
+
         modelRoot.updateMatrixWorld(true);
-        const normalizedBounds = new THREE.Box3().setFromObject(modelRoot);
-        const center = normalizedBounds.getCenter(new THREE.Vector3());
-        modelRoot.position.set(-center.x, -normalizedBounds.min.y, -center.z);
+        const sourceBounds = new THREE.Box3().setFromObject(modelRoot);
+        const sourceSize = sourceBounds.getSize(new THREE.Vector3());
+        if (sourceBounds.isEmpty() || sourceSize.x <= 0 || sourceSize.y <= 0 || sourceSize.z <= 0) {
+          console.error('[NEON COAST] Bundled sedan has invalid bounds; showing the emergency fallback.');
+          return;
+        }
+
+        // Fit the model to the controller footprint and align the lowest wheel point to ground.
+        const fitScale = Math.min(1.92 / sourceSize.x, 4.15 / sourceSize.z, 1.58 / sourceSize.y);
+        modelRoot.scale.multiplyScalar(fitScale);
+        modelRoot.updateMatrixWorld(true);
+        const finalBounds = new THREE.Box3().setFromObject(modelRoot);
+        const center = finalBounds.getCenter(new THREE.Vector3());
+        modelRoot.position.set(-center.x, -finalBounds.min.y, -center.z);
         modelRoot.updateMatrixWorld(true);
 
         modelRoot.traverse((node) => {
@@ -279,32 +312,26 @@ export class VehicleController {
         });
         this.bodyVisual.add(modelRoot);
 
-        // Use the source model's authored wheel clip when present. Keep its hierarchy intact.
-        const roll = gltf.animations.find((clip) => /roll|wheel/i.test(clip.name));
-        if (roll) {
-          const mixer = new THREE.AnimationMixer(modelRoot);
-          const action = mixer.clipAction(roll);
-          action.setLoop(THREE.LoopRepeat, Infinity);
-          action.play();
-          this.modelMixer = mixer;
-          this.modelRollAction = action;
-        }
+        const contactShadow = new THREE.Mesh(
+          new THREE.PlaneGeometry(2.35, 4.25),
+          new THREE.MeshBasicMaterial({ color: '#111722', transparent: true, opacity: 0.2, depthWrite: false }),
+        );
+        contactShadow.name = 'Sedan contact shadow';
+        contactShadow.rotation.x = -Math.PI / 2;
+        contactShadow.position.y = 0.012;
+        contactShadow.renderOrder = 1;
+        contactShadow.castShadow = false;
+        contactShadow.receiveShadow = false;
+        this.bodyVisual.add(contactShadow);
 
-        // Discover front wheel pivots for steering only; leave the hierarchy untouched
-        // so the authored wheel-roll animation remains bound to the original node paths.
-        modelRoot.traverse((node) => {
-          if (/wheel.*front|front.*wheel|wheel-(left|right)-front/i.test(node.name)) {
-            this.modelWheels.push({ pivot: node as THREE.Group, front: true });
-          }
-        });
-
+        this.modelWheels.splice(0, this.modelWheels.length, ...wheelNodes);
         this.fallbackVisual.visible = false;
         this.realModelLoaded = true;
-        console.info(`[NEON COAST] Low-poly car loaded; ${this.modelWheels.length} named wheel pivots, ${gltf.animations.length} authored animations.`);
+        console.info(`[NEON COAST] Bundled Kenney sedan loaded: ${wheelNodes.length} wheel pivots; source fit ${sourceSize.x.toFixed(2)} × ${sourceSize.y.toFixed(2)} × ${sourceSize.z.toFixed(2)} m.`);
       },
       undefined,
       (error) => {
-        console.error('[NEON COAST] Real car model failed to load from GitHub-hosted asset ' + REAL_CAR_MODEL_URL, error);
+        console.error('[NEON COAST] Bundled sedan failed to load at ' + REAL_CAR_MODEL_URL + '; verify public/models/kenney-sedan.glb is included in the build.', error);
       },
     );
   }
@@ -322,9 +349,12 @@ export class VehicleController {
   private animateWheels(dt: number): void {
     if (this.realModelLoaded) {
       for (const wheel of this.modelWheels) {
-        if (wheel.front) wheel.pivot.rotation.y = this.steering * 0.78;
+        // The sedan's front is +Z in source space; its visual root faces -Z in-game.
+        wheel.spin -= this.speed * dt / CAR_WHEEL_RADIUS;
+        wheel.pivot.rotation.x = wheel.baseRotationX + wheel.spin;
+        wheel.pivot.rotation.y = wheel.front ? wheel.baseRotationY - this.steering * 0.55 : wheel.baseRotationY;
+        wheel.pivot.rotation.z = wheel.baseRotationZ;
       }
-      if (this.modelRollAction) this.modelRollAction.timeScale = THREE.MathUtils.clamp(Math.abs(this.speed) / 7, 0.08, 2.8) * (this.speed < 0 ? -1 : 1);
     }
     for (const assembly of this.wheels) {
       if (this.realModelLoaded) continue;
