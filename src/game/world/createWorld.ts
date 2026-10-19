@@ -3,6 +3,7 @@ import * as THREE from 'three';
 export interface WorldBundle {
   root: THREE.Group;
   player: THREE.Group;
+  collisionBoxes: THREE.Box3[];
   update: (dt: number, elapsed: number) => void;
 }
 
@@ -24,6 +25,7 @@ export function createWorld(): WorldBundle {
     mesh.castShadow = sy > 1;
     mesh.receiveShadow = true;
     mesh.userData.cameraObstacle = obstacle;
+    mesh.userData.playerCollision = obstacle;
     root.add(mesh);
     return mesh;
   };
@@ -111,23 +113,10 @@ export function createWorld(): WorldBundle {
   sign.position.set(-28, 4.5, -16);
   root.add(sign);
 
-  // Clearly marked temporary player silhouette for Milestone A, not the final rigged character.
+  // The real rigged character is attached by PlayerController in Milestone B.
   const player = new THREE.Group();
-  player.name = 'Milestone A temporary player marker';
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.95, 4, 8), mat('#f0c7a3', 0.7));
-  body.position.y = 1.05;
-  body.castShadow = true;
-  player.add(body);
-  const shirt = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.43, 0.72, 10), mat('#ee6c76'));
-  shirt.position.y = 1.12;
-  player.add(shirt);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 10), mat('#d6a17d'));
-  head.position.y = 1.9;
-  player.add(head);
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.285, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), mat('#352a30'));
-  hair.position.y = 2.02;
-  player.add(hair);
-  player.position.set(-5, 0.1, 4);
+  player.name = 'Player character root';
+  player.position.set(-5, 0.12, 4);
   root.add(player);
 
   const sky = new THREE.Mesh(new THREE.SphereGeometry(240, 24, 16), new THREE.MeshBasicMaterial({ color: '#efad98', side: THREE.BackSide }));
@@ -147,9 +136,16 @@ export function createWorld(): WorldBundle {
   fill.position.set(-26, 7, -15);
   root.add(fill);
 
+  root.updateMatrixWorld(true);
+  const collisionBoxes: THREE.Box3[] = [];
+  root.traverse((object) => {
+    if (object.userData.playerCollision === true) collisionBoxes.push(new THREE.Box3().setFromObject(object));
+  });
+
   return {
     root,
     player,
+    collisionBoxes,
     update: (_dt, elapsed) => {
       for (const item of animated) item.object.position.y = item.baseY + Math.sin(elapsed * 1.6 + item.phase) * item.amplitude;
     },
