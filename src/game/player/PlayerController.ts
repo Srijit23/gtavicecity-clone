@@ -72,7 +72,7 @@ export class PlayerController {
       gltf.scene.name = 'Rigged Mixamo Soldier';
       gltf.scene.traverse((node) => {
         if (node instanceof THREE.Mesh) {
-          node.castShadow = true;
+          node.castShadow = false;
           node.receiveShadow = true;
         }
       });
@@ -327,10 +327,10 @@ export class PlayerController {
     const shirt = new THREE.MeshStandardMaterial({ color: '#e66a76', roughness: 0.8 });
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.8, 4, 8), shirt);
     body.position.y = 0.95;
-    body.castShadow = true;
+    body.castShadow = false;
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 12, 10), skin);
     head.position.y = 1.72;
-    head.castShadow = true;
+    head.castShadow = false;
     group.add(body, head);
     return group;
   }
