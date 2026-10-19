@@ -363,13 +363,15 @@ export function createExpansionDistricts(parent: THREE.Group, collisionBoxes: TH
   const markingMatrices: THREE.Matrix4[] = [];
   const q = new THREE.Quaternion();
   const addRoad = (x: number, z: number, width: number, length: number, vertical: boolean): void => {
-    const rotation = vertical ? q : new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
-    roadMatrices.push(transform(new THREE.Vector3(x, 0.06, z), rotation, new THREE.Vector3(width, 0.12, length)));
+    // Box dimensions stay in world axes: north-south roads are narrow in X, cross streets narrow in Z.
+    const roadScale = vertical ? new THREE.Vector3(width, 0.12, length) : new THREE.Vector3(length, 0.12, width);
+    roadMatrices.push(transform(new THREE.Vector3(x, 0.06, z), q, roadScale));
     for (const side of [-1, 1]) {
       const offset = width / 2 + 1.55;
       const sx = vertical ? x + side * offset : x;
       const sz = vertical ? z : z + side * offset;
-      sidewalkMatrices.push(transform(new THREE.Vector3(sx, 0.12, sz), rotation, new THREE.Vector3(1.5, 0.2, length)));
+      const sidewalkScale = vertical ? new THREE.Vector3(1.5, 0.2, length) : new THREE.Vector3(length, 0.2, 1.5);
+      sidewalkMatrices.push(transform(new THREE.Vector3(sx, 0.12, sz), q, sidewalkScale));
     }
     if (vertical) {
       for (let t = -length / 2 + 8; t <= length / 2 - 8; t += 13) {
@@ -377,7 +379,7 @@ export function createExpansionDistricts(parent: THREE.Group, collisionBoxes: TH
       }
     } else {
       for (let t = -length / 2 + 8; t <= length / 2 - 8; t += 13) {
-        markingMatrices.push(transform(new THREE.Vector3(x + t, 0.132, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2), new THREE.Vector3(0.13, 0.018, 4.4)));
+        markingMatrices.push(transform(new THREE.Vector3(x + t, 0.132, z), q, new THREE.Vector3(4.4, 0.018, 0.13)));
       }
     }
   };
@@ -385,7 +387,7 @@ export function createExpansionDistricts(parent: THREE.Group, collisionBoxes: TH
   // Nine connected north-south collectors and regular east-west streets form a readable road hierarchy.
   for (const x of [-400, -320, -240, -160, -80]) addRoad(x, 0, 8.5, 740, true);
   for (const z of [-360, -280, -200, -120, -87, -34, 19, 73, 120, 200, 280, 360]) {
-    addRoad(-240, z, 390, 9.0, false);
+    addRoad(-220, z, 9.0, 380, false);
   }
   addInstances(roads, 'Collector road asphalt', boxGeometry, roadMat, roadMatrices);
   addInstances(roads, 'Collector sidewalks', boxGeometry, sidewalkMat, sidewalkMatrices);
