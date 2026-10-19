@@ -13,6 +13,16 @@ const byId = <T extends HTMLElement>(id: string): T => {
   return element as T;
 };
 
+const diagnosticsPanel = (() => {
+  if (new URLSearchParams(window.location.search).get('debug') !== '1') return undefined;
+  const panel = document.createElement('pre');
+  panel.id = 'performance-diagnostics';
+  panel.style.cssText = 'position:fixed;left:14px;bottom:64px;z-index:20;max-width:min(420px,calc(100vw - 28px));margin:0;padding:12px 14px;background:rgba(8,12,22,.88);border:1px solid rgba(255,255,255,.22);border-radius:8px;color:#d9f6eb;font:11px/1.6 ui-monospace,monospace;white-space:pre-wrap;pointer-events:none';
+  panel.textContent = 'Performance diagnostics initializing…';
+  document.body.append(panel);
+  return panel;
+})();
+
 const loading = byId<HTMLDivElement>('loading');
 const loadingMessage = byId<HTMLParagraphElement>('loading-message');
 const startScreen = byId<HTMLElement>('start-screen');
@@ -49,7 +59,50 @@ let paused = false;
 let disposed = false;
 let worldScene: THREE.Scene | undefined;
 let lastHudUpdate = 0;
+let lastDiagnosticsUpdate = 0;
 let currentCityPrompt = '';
+let maxPixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+let activePixelRatio = maxPixelRatio;
+let frameTimeEmaMs = 1000 / 60;
+let slowFrameSeconds = 0;
+let stableFrameSeconds = 0;
+let pixelRatioCooldown = 0;
+
+function applyPixelRatio(): void {
+  if (!renderer) return;
+  renderer.setPixelRatio(activePixelRatio);
+  // Resize the drawing buffer without rewriting the canvas's CSS dimensions.
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+}
+
+function adaptPixelRatio(frameSeconds: number, frameMilliseconds: number): void {
+  if (!renderer || document.hidden || frameSeconds > 0.25) return;
+  frameTimeEmaMs += (frameMilliseconds - frameTimeEmaMs) * 0.08;
+  pixelRatioCooldown = Math.max(0, pixelRatioCooldown - frameSeconds);
+  if (frameTimeEmaMs > 22 && frameMilliseconds > 20) {
+    slowFrameSeconds += frameSeconds;
+    stableFrameSeconds = 0;
+  } else if (frameTimeEmaMs < 15.5 && frameMilliseconds < 19) {
+    stableFrameSeconds += frameSeconds;
+    slowFrameSeconds = 0;
+  } else {
+    slowFrameSeconds = Math.max(0, slowFrameSeconds - frameSeconds * 0.5);
+    stableFrameSeconds = 0;
+  }
+
+  if (pixelRatioCooldown > 0) return;
+  if (slowFrameSeconds >= 2.2 && activePixelRatio > 0.86) {
+    activePixelRatio = Math.max(0.85, Math.round((activePixelRatio - 0.1) * 100) / 100);
+    applyPixelRatio();
+    pixelRatioCooldown = 5;
+    slowFrameSeconds = 0;
+  } else if (stableFrameSeconds >= 10 && activePixelRatio < maxPixelRatio - 0.01) {
+    activePixelRatio = Math.min(maxPixelRatio, Math.round((activePixelRatio + 0.05) * 100) / 100);
+    applyPixelRatio();
+    pixelRatioCooldown = 10;
+    stableFrameSeconds = 0;
+  }
+}
 
 function showError(error: unknown): void {
   console.error('[NEON COAST] Startup failed:', error);
@@ -84,7 +137,9 @@ async function initialize(): Promise<void> {
   worldScene.add(world.root);
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+  maxPixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+  activePixelRatio = maxPixelRatio;
+  renderer.setPixelRatio(activePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -106,7 +161,9 @@ async function initialize(): Promise<void> {
 
   const onResize = (): void => {
     if (!renderer || !cameraRig) return;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    maxPixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+    activePixelRatio = Math.min(activePixelRatio, maxPixelRatio);
+    applyPixelRatio();
     renderer.setSize(window.innerWidth, window.innerHeight);
     cameraRig.resize(window.innerWidth, window.innerHeight);
   };
@@ -183,7 +240,10 @@ async function initialize(): Promise<void> {
   const animate = (): void => {
     if (disposed || !renderer || !worldScene || !playerController || !cameraRig || !input) return;
     animationFrame = window.requestAnimationFrame(animate);
-    const dt = Math.min(clock.getDelta(), 0.05);
+    const rawDelta = clock.getDelta();
+    const frameMilliseconds = rawDelta * 1000;
+    adaptPixelRatio(rawDelta, frameMilliseconds);
+    const dt = Math.min(rawDelta, 0.05);
     const elapsed = clock.elapsedTime;
     world.update(dt, elapsed, vehicleController?.isDriving ? vehicleController.object.position : world.player.position);
     environmentController?.update(dt);
@@ -202,6 +262,22 @@ async function initialize(): Promise<void> {
 
     cameraRig.follow(dt);
     renderer.render(worldScene, cameraRig.camera);
+    if (diagnosticsPanel && elapsed - lastDiagnosticsUpdate > 0.25) {
+      const position = vehicleController?.isDriving ? vehicleController.object.position : world.player.position;
+      const fps = frameTimeEmaMs > 0 ? 1000 / frameTimeEmaMs : 0;
+      diagnosticsPanel.textContent = [
+        'NEON COAST · DEBUG',
+        `FPS (EMA): ${fps.toFixed(1)}`,
+        `Frame time: ${frameTimeEmaMs.toFixed(1)} ms`,
+        `Pixel ratio: ${activePixelRatio.toFixed(2)} / ${maxPixelRatio.toFixed(2)}`,
+        `Draw calls: ${renderer.info.render.calls}`,
+        `Triangles: ${renderer.info.render.triangles.toLocaleString()}`,
+        `Geometries / textures: ${renderer.info.memory.geometries} / ${renderer.info.memory.textures}`,
+        `World position: ${position.x.toFixed(0)}, ${position.z.toFixed(0)}`,
+        `NPC systems: disabled`,
+      ].join('\\n');
+      lastDiagnosticsUpdate = elapsed;
+    }
     if (elapsed - lastHudUpdate > 0.15 && started && !paused) {
       const position = world.player.position;
       positionReadout.textContent = vehicleController?.isDriving
