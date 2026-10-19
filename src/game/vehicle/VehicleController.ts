@@ -8,7 +8,7 @@ const VEHICLE_HALF_LENGTH = 2.15;
 const ENTER_DISTANCE = 4.5;
 
 type WheelAssembly = { pivot: THREE.Group; wheel: THREE.Group; front: boolean; side: number; restY: number };
-type ModelWheel = { pivot: THREE.Group; front: boolean }; 
+type ModelWheel = { pivot: THREE.Group; front: boolean };
 const REAL_CAR_MODEL_URL = 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CarConcept/glTF-Binary/CarConcept.glb';
 
 export class VehicleController {
@@ -32,7 +32,7 @@ export class VehicleController {
   private suspensionPhase = 0;
   private eWasDown = false;
   private driving = false;
-  private readonly paint = new THREE.MeshStandardMaterial({ color: '#e94e79', metalness: 0.62, roughness: 0.28 });
+  private readonly paint = new THREE.MeshStandardMaterial({ color: '#c3182b', metalness: 0.68, roughness: 0.27 });
   private readonly darkPaint = new THREE.MeshStandardMaterial({ color: '#272d3d', metalness: 0.48, roughness: 0.32 });
   private readonly glass = new THREE.MeshPhysicalMaterial({ color: '#243e50', metalness: 0.25, roughness: 0.16, transparent: true, opacity: 0.78, clearcoat: 0.9 });
   private readonly chrome = new THREE.MeshStandardMaterial({ color: '#b9c8cf', metalness: 0.88, roughness: 0.22 });
@@ -46,7 +46,7 @@ export class VehicleController {
     this.collisionBoxes = collisionBoxes;
     this.staticCollisionBoxes = collisionBoxes.slice();
     this.object = new THREE.Group();
-    this.object.name = 'Pink coastal coupe';
+    this.object.name = 'Red concept coupe';
     this.object.position.set(-5, GROUND_Y, 0.2);
     this.object.add(this.bodyVisual);
     this.bodyVisual.add(this.fallbackVisual);
@@ -245,6 +245,12 @@ export class VehicleController {
         // Convert to Three.js Y-up and align the bonnet with the controller's -Z forward.
         modelRoot.rotation.set(-Math.PI / 2, Math.PI, 0);
         modelRoot.add(gltf.scene);
+        modelRoot.traverse((node) => {
+          if (node instanceof THREE.Mesh) {
+            node.castShadow = true;
+            node.receiveShadow = true;
+          }
+        });
         modelRoot.updateMatrixWorld(true);
 
         const bounds = new THREE.Box3().setFromObject(modelRoot);
@@ -275,6 +281,11 @@ export class VehicleController {
             wheelNodes.push({ node, front: /^WheelFront/i.test(node.name) });
           }
         });
+        if (wheelNodes.length < 4) {
+          this.bodyVisual.remove(modelRoot);
+          console.warn('[NEON COAST] Car GLB did not expose all four wheel pivots; keeping procedural fallback.');
+          return;
+        }
         for (const entry of wheelNodes) {
           const wheelBounds = new THREE.Box3().setFromObject(entry.node);
           if (wheelBounds.isEmpty()) continue;
