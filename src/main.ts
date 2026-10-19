@@ -4,6 +4,7 @@ import { createWorld } from './game/world/createWorld';
 import { FollowCamera } from './game/camera/FollowCamera';
 import { PlayerController } from './game/player/PlayerController';
 import { VehicleController } from './game/vehicle/VehicleController';
+import { PopulationController } from './game/population/PopulationController';
 import './style.css';
 
 const byId = <T extends HTMLElement>(id: string): T => {
@@ -28,6 +29,7 @@ let input: InputManager | undefined;
 let cameraRig: FollowCamera | undefined;
 let playerController: PlayerController | undefined;
 let vehicleController: VehicleController | undefined;
+let populationController: PopulationController | undefined;
 let animationFrame = 0;
 let started = false;
 let disposed = false;
@@ -83,6 +85,7 @@ async function initialize(): Promise<void> {
   await playerController.loadCharacter();
 
   vehicleController = new VehicleController(world.root, playerController, world.collisionBoxes);
+  populationController = new PopulationController(world.root, world.player, vehicleController.object, world.collisionBoxes);
   cameraRig = new FollowCamera(worldScene, world.player);
   input = new InputManager(renderer.domElement);
   const clock = new THREE.Clock();
@@ -130,6 +133,7 @@ async function initialize(): Promise<void> {
 
     if (started && !document.hidden) {
       vehicleController?.update(dt, input.keys);
+      populationController?.update(dt, Boolean(vehicleController?.isDriving));
       cameraRig.setTarget(vehicleController?.isDriving ? vehicleController.object : world.player, Boolean(vehicleController?.isDriving));
       cameraRig.update(dt, input.lookDeltaX, input.lookDeltaY, input.zoomDelta);
       input.consumeMouseDeltas();
@@ -144,8 +148,8 @@ async function initialize(): Promise<void> {
     if (elapsed - lastHudUpdate > 0.15 && started) {
       const position = world.player.position;
       positionReadout.textContent = vehicleController?.isDriving
-        ? `DRIVING · ${vehicleController.speedKmh} KM/H`
-        : `X ${position.x.toFixed(1)} · Z ${position.z.toFixed(1)} · ${playerController.isUsingRiggedCharacter ? 'RIGGED' : 'FALLBACK'}`;
+        ? `DRIVING · ${vehicleController.speedKmh} KM/H · ${populationController?.pedestrianCount ?? 0} PEDS · ${populationController?.trafficCount ?? 0} CARS`
+        : `X ${position.x.toFixed(1)} · Z ${position.z.toFixed(1)} · ${playerController.isUsingRiggedCharacter ? 'RIGGED' : 'FALLBACK'} · ${populationController?.pedestrianCount ?? 0} PEDS · ${populationController?.trafficCount ?? 0} CARS`;
       const vehiclePrompt = document.getElementById('vehicle-prompt');
       const cityPrompt = document.getElementById('city-prompt');
       if (cityPrompt) {
