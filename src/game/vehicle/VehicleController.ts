@@ -9,7 +9,7 @@ const ENTER_DISTANCE = 4.5;
 
 type WheelAssembly = { pivot: THREE.Group; wheel: THREE.Group; front: boolean; side: number; restY: number };
 type ModelWheel = { pivot: THREE.Group; front: boolean };
-const REAL_CAR_MODEL_URL = 'https://cdn.3dassets.dev/assets/29024/v1/model.glb';
+const REAL_CAR_MODEL_URL = 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CarConcept/glTF-Binary/CarConcept.glb';
 
 export class VehicleController {
   readonly object: THREE.Group;
@@ -242,14 +242,15 @@ export class VehicleController {
       (gltf) => {
         if (!gltf.scene || !gltf.scene.children.length) return;
 
-        // This replacement asset is authored Y-up in metres (about 2.03 × 1.66 × 4.665).
-        // Do not rotate it: the controller drives along local -Z and Three.js uses +Y up.
+        // Khronos CarConcept is authored Z-up with its nose along source -Y.
+        // Convert the imported content to Three.js Y-up / controller-forward -Z,
+        // leaving the normalization root unrotated for correct ground alignment.
         const modelRoot = new THREE.Group();
-        modelRoot.name = 'Low-poly red saloon (CC0)';
-        // Hatchback asset faces +Z; the vehicle controller drives along -Z.
-        // Rotate the asset 180 degrees around Y before measuring its bounds.
-        modelRoot.rotation.y = Math.PI;
-        modelRoot.add(gltf.scene);
+        modelRoot.name = 'Khronos Car Concept (CC BY 4.0)';
+        const modelContent = new THREE.Group();
+        modelContent.rotation.set(-Math.PI / 2, Math.PI, 0);
+        modelContent.add(gltf.scene);
+        modelRoot.add(modelContent);
         modelRoot.updateMatrixWorld(true);
 
         const bounds = new THREE.Box3().setFromObject(modelRoot);
@@ -278,9 +279,8 @@ export class VehicleController {
         });
         this.bodyVisual.add(modelRoot);
 
-        // Use the asset's authored "roll" clip. This model's wheel nodes are animated
-        // by that clip; reparenting them would invalidate glTF animation bindings.
-        const roll = gltf.animations.find((clip) => /roll/i.test(clip.name));
+        // Use the source model's authored wheel clip when present. Keep its hierarchy intact.
+        const roll = gltf.animations.find((clip) => /roll|wheel/i.test(clip.name));
         if (roll) {
           const mixer = new THREE.AnimationMixer(modelRoot);
           const action = mixer.clipAction(roll);
@@ -304,7 +304,7 @@ export class VehicleController {
       },
       undefined,
       (error) => {
-        console.error('[NEON COAST] Real car model failed to load. Check network/CORS for ' + REAL_CAR_MODEL_URL, error);
+        console.error('[NEON COAST] Real car model failed to load from GitHub-hosted asset ' + REAL_CAR_MODEL_URL, error);
       },
     );
   }
