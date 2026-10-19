@@ -54,6 +54,16 @@ export function createWorld(): WorldBundle {
     return mesh;
   };
 
+  const addInstances = (name: string, geometry: THREE.BufferGeometry, material: THREE.Material, matrices: THREE.Matrix4[]): THREE.InstancedMesh => {
+    const instances = new THREE.InstancedMesh(geometry, material, matrices.length);
+    instances.name = name;
+    matrices.forEach((matrix, index) => instances.setMatrixAt(index, matrix));
+    instances.castShadow = false;
+    instances.receiveShadow = true;
+    root.add(instances);
+    return instances;
+  };
+
   // Warm sand-colored ground plane and continuous asphalt network.
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(270, 270), groundMaterial);
   ground.rotation.x = -Math.PI / 2;
@@ -71,16 +81,22 @@ export function createWorld(): WorldBundle {
   addBox('Beach promenade', 22.4, 0.02, 0, 6.7, 0.16, 230, sidewalkMaterial);
   addBox('West curb', -12.62, 0.02, 0, 0.18, 0.2, 230, curbMaterial);
   addBox('East curb', 12.62, 0.02, 0, 0.18, 0.2, 230, curbMaterial);
+  const centerDashes: THREE.Matrix4[] = [];
+  const leftDashes: THREE.Matrix4[] = [];
+  const rightDashes: THREE.Matrix4[] = [];
   for (let z = -108; z <= 108; z += 8) {
-    addBox('Center lane dash ' + z, 0, 0.125, z, 0.14, 0.018, 3.7, laneMaterial);
-    addBox('Edge lane dash L ' + z, -6.8, 0.125, z, 0.08, 0.018, 2.1, laneMaterial);
-    addBox('Edge lane dash R ' + z, 6.8, 0.125, z, 0.08, 0.018, 2.1, laneMaterial);
+    centerDashes.push(new THREE.Matrix4().makeTranslation(0, 0.134, z));
+    leftDashes.push(new THREE.Matrix4().makeTranslation(-6.8, 0.134, z));
+    rightDashes.push(new THREE.Matrix4().makeTranslation(6.8, 0.134, z));
   }
+  addInstances('Center lane markings', new THREE.BoxGeometry(0.14, 0.018, 3.7), laneMaterial, centerDashes);
+  addInstances('Left lane markings', new THREE.BoxGeometry(0.08, 0.018, 2.1), laneMaterial, leftDashes);
+  addInstances('Right lane markings', new THREE.BoxGeometry(0.08, 0.018, 2.1), laneMaterial, rightDashes);
+  const crosswalkStripes: THREE.Matrix4[] = [];
   for (const z of [-34, 19, 73, -87]) {
-    for (let x = -88; x <= 88; x += 9) {
-      addBox('Crosswalk stripe ' + z + '-' + x, x, 0.126, z, 3.2, 0.018, 0.38, laneMaterial);
-    }
+    for (let x = -88; x <= 88; x += 9) crosswalkStripes.push(new THREE.Matrix4().makeTranslation(x, 0.135, z));
   }
+  addInstances('Crosswalk markings', new THREE.BoxGeometry(3.2, 0.018, 0.38), laneMaterial, crosswalkStripes);
 
   const ocean = new THREE.Mesh(new THREE.PlaneGeometry(92, 260), new THREE.MeshStandardMaterial({ color: '#208da1', roughness: 0.32, metalness: 0.12 }));
   ocean.rotation.x = -Math.PI / 2;
