@@ -23,7 +23,9 @@
 - [x] Add fixed-step signed-speed vehicle dynamics, acceleration, braking, reverse, steering, drag, and collision response
 - [x] Add per-wheel suspension probes, wheel rotation/steering, and body pitch/roll under acceleration and cornering
 - [x] Integrate E-to-enter/exit state transitions, player motion reset, on-foot vehicle collision, and a driving follow-camera
-- [x] Add speed readout and contextual vehicle-control hints
+- [x] Add a digital speedometer with gear direction, speed bar, and contextual vehicle-control hints
+- [x] Tune acceleration, braking, reverse, speed-dependent steering sensitivity, handbrake behavior, and collision response
+- [x] Keep the driving camera aligned behind the car heading with smoothed follow and mouse orbit
 - [ ] Verify entry, driving, braking, reversing, exit, and walking transitions in a real browser
 
 ## Milestone D: Playable City
