@@ -19,13 +19,45 @@ const mat = (color: THREE.ColorRepresentation, roughness = 0.82, metalness = 0):
   return created;
 };
 
+function createGroundTexture(): THREE.CanvasTexture | undefined {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const context = canvas.getContext('2d');
+  if (!context) return undefined;
+  context.fillStyle = '#8b9878';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  const palette = ['#9ba681', '#7f916f', '#a8a987', '#76896f', '#b1b08b', '#879576'];
+  let seed = 90210;
+  const random = (): number => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  // Build once at startup; a small repeating texture adds terrain breakup with only one material.
+  for (let i = 0; i < 5200; i += 1) {
+    context.globalAlpha = 0.12 + random() * 0.22;
+    context.fillStyle = palette[Math.floor(random() * palette.length)];
+    context.fillRect(random() * 256, random() * 256, 1 + random() * 4, 1 + random() * 2);
+  }
+  context.globalAlpha = 1;
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(34, 34);
+  texture.anisotropy = 2;
+  return texture;
+}
+
 export function createWorld(): WorldBundle {
   const root = new THREE.Group();
   root.name = 'Neon Coast playable district';
   const animated: Array<{ object: THREE.Object3D; baseY: number; phase: number; amplitude: number }> = [];
   const collisionBoxes: THREE.Box3[] = [];
   const sharedBoxGeometry = new THREE.BoxGeometry(1, 1, 1);
-  const groundMaterial = mat('#d6b58a');
+  const groundMaterial = mat('#d1dec0', 0.98);
+  const groundTexture = createGroundTexture();
+  if (groundTexture) groundMaterial.map = groundTexture;
   const roadMaterial = mat('#303746', 0.96);
   const sidewalkMaterial = mat('#cdbda8');
   const curbMaterial = mat('#e9d7b9', 0.92);
