@@ -423,9 +423,10 @@ export function createExpansionDistricts(parent: THREE.Group, collisionBoxes: TH
   for (const x of [-800, -720, -640, -560, -480, -400, -320, -240, -160, -80]) addRoad(x, 0, 8.5, 740, true);
   for (const z of [-360, -280, -200, -120, -87, -34, 19, 73, 120, 200, 280, 360]) {
     // Existing central cross streets already cover -98..0 at these four rows; stop exactly at their west edge to avoid coplanar overlap.
-    const centralStreetAlreadyExists = [-87, -34, 19, 73].includes(z);
+    // Join the exact west edge of each existing central cross street; other streets meet the main boulevard at x=0.
+    const centralRoadWestEdge: Record<number, number> = { [-87]: -93, [-34]: -98, [19]: -6, [73]: -90.5 };
     const startX = -820;
-    const endX = centralStreetAlreadyExists ? -98 : 0;
+    const endX = centralRoadWestEdge[z] ?? 0;
     addRoad((startX + endX) / 2, z, 9.0, endX - startX, false);
   }
   addInstances(roads, 'Collector road asphalt', boxGeometry, roadMat, roadMatrices);
