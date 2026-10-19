@@ -6,7 +6,7 @@ A browser-based 3D open-world coastal-city prototype built with Vite, TypeScript
 - Node.js 20 or newer
 - npm
 - A desktop browser with WebGL 2 support (Chrome recommended)
-- Internet access for the detailed external car model; the procedural car remains as a fallback if the model cannot load
+- Internet access is required for the separately hosted rigged character; the low-poly sedan GLB is bundled locally and does not depend on an external car CDN
 
 ## Run locally
 ```bash
@@ -32,7 +32,8 @@ npm run preview
 ## Current scope
 - Rigged humanoid with idle/walk/run animation handling, grounded movement, jumping, and collision
 - Custom arcade driving controller with acceleration, braking/reverse, speed-sensitive steering, vehicle camera, and km/h speedometer
-- low-poly hatchback GLB (CC0) normalized in native Y-up coordinates; driving physics and speedometer stay controller-owned, with model-authored rolling animation when available
+- Bundled 185 KB Kenney Car Kit sedan GLB (CC0), fitted to a ~4 m road-car footprint and oriented independently from the physics root
+- Four named wheel nodes driven by signed vehicle speed; front wheels steer with the same A/D input as the chassis
 - Compact art-deco waterfront district, promenade, beach, and enterable diner
 - Pooled pedestrians and civilian boulevard traffic
 - Automatic day/night lighting and manual day/sunset/night presets, plus synthesized coastal ambience
