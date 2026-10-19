@@ -33,6 +33,7 @@ let started = false;
 let disposed = false;
 let worldScene: THREE.Scene | undefined;
 let lastHudUpdate = 0;
+let currentCityPrompt = '';
 
 function showError(error: unknown): void {
   console.error('[NEON COAST] Startup failed:', error);
@@ -133,6 +134,7 @@ async function initialize(): Promise<void> {
       cameraRig.update(dt, input.lookDeltaX, input.lookDeltaY, input.zoomDelta);
       input.consumeMouseDeltas();
       if (!vehicleController?.isDriving) playerController.update(dt, input.keys, cameraRig.yaw);
+      currentCityPrompt = vehicleController?.isDriving ? '' : world.interact(world.player.position, input.keys);
     } else {
       cameraRig.update(dt, 0, 0, 0);
     }
@@ -147,9 +149,8 @@ async function initialize(): Promise<void> {
       const vehiclePrompt = document.getElementById('vehicle-prompt');
       const cityPrompt = document.getElementById('city-prompt');
       if (cityPrompt) {
-        const message = vehicleController?.isDriving ? '' : world.interact(world.player.position, input.keys);
-        cityPrompt.textContent = message;
-        cityPrompt.classList.toggle('visible', Boolean(message));
+        cityPrompt.textContent = currentCityPrompt;
+        cityPrompt.classList.toggle('visible', Boolean(currentCityPrompt));
       }
       if (vehiclePrompt) {
         vehiclePrompt.textContent = vehicleController?.isDriving
