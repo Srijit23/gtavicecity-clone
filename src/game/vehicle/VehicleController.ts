@@ -81,7 +81,7 @@ export class VehicleController {
       this.speed = THREE.MathUtils.clamp(this.speed, -7.5, 22);
       const speedFactor = THREE.MathUtils.clamp(Math.abs(this.speed) / 4.5, 0, 1);
       this.steering = THREE.MathUtils.damp(this.steering, steeringInput * 0.58 * speedFactor, 5.5, step);
-      this.object.rotation.y += this.steering * (this.speed / 3.2) * step;
+      this.object.rotation.y -= this.steering * (this.speed / 3.2) * step;
       const forward = new THREE.Vector3(-Math.sin(this.object.rotation.y), 0, -Math.cos(this.object.rotation.y));
       const previous = this.object.position.clone();
       this.object.position.addScaledVector(forward, this.speed * step);
