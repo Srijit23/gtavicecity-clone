@@ -129,6 +129,7 @@ function makeHousingZone(
   name: string,
   houses: HousePlacement[],
   center: THREE.Vector3,
+  radius = 180,
 ): CullZone {
   const root = new THREE.Group();
   root.name = name;
@@ -211,7 +212,7 @@ function makeHousingZone(
   addInstances(details, root.name + ' porch canopies', boxGeometry, canopyMat, porchCanopies);
   addInstances(details, root.name + ' porch columns', boxGeometry, pillarMat, porchPillars);
   addInstances(details, root.name + ' garden shrubs', new THREE.SphereGeometry(1, 7, 5), bushMat, bushes, bushColors);
-  return { root, details, center, radius: 180 };
+  return { root, details, center, radius };
 }
 
 function addApartmentBlock(
@@ -385,19 +386,19 @@ export function createExpansionDistricts(parent: THREE.Group, collisionBoxes: TH
   };
 
   // Nine connected north-south collectors and regular east-west streets form a readable road hierarchy.
-  for (const x of [-400, -320, -240, -160, -80]) addRoad(x, 0, 8.5, 740, true);
+  for (const x of [-800, -720, -640, -560, -480, -400, -320, -240, -160, -80]) addRoad(x, 0, 8.5, 740, true);
   for (const z of [-360, -280, -200, -120, -87, -34, 19, 73, 120, 200, 280, 360]) {
-    addRoad(-220, z, 9.0, 380, false);
+    addRoad(-430, z, 9.0, 780, false);
   }
   addInstances(roads, 'Collector road asphalt', boxGeometry, roadMat, roadMatrices);
   addInstances(roads, 'Collector sidewalks', boxGeometry, sidewalkMat, sidewalkMatrices);
   addInstances(roads, 'Road center dashes', boxGeometry, laneMat, markingMatrices);
 
-  const northHouses: HousePlacement[] = [];
-  const southHouses: HousePlacement[] = [];
+  const northNear: HousePlacement[] = [], northMid: HousePlacement[] = [], northFar: HousePlacement[] = [];
+  const southNear: HousePlacement[] = [], southMid: HousePlacement[] = [], southFar: HousePlacement[] = [];
   let seed = 100;
   for (const z of [-320, -240, -160, -80, 80, 160, 240, 320]) {
-    for (const x of [-120, -200, -280, -360]) {
+    for (const x of [-120, -200, -280, -360, -440, -520, -600, -680, -760]) {
       // The park, school, apartments and warehouse take the most prominent corner lots.
       if ((x === -280 && z === 240) || (x === -200 && z === 80) || (x === -280 && z === 80)
           || (x === -360 && z === -240)) continue;
@@ -407,14 +408,22 @@ export function createExpansionDistricts(parent: THREE.Group, collisionBoxes: TH
       const wallHeight = 3.9 + random01(seed + 3) * 1.2;
       const roofHeight = 2.0 + random01(seed + 4) * 1.4;
       const house = { x, z, width, depth, wallHeight, roofHeight, rotation, seed };
-      (z < 0 ? southHouses : northHouses).push(house);
+      const area = x >= -400 ? 'near' : x >= -600 ? 'mid' : 'far';
+      if (z < 0) (area === 'near' ? southNear : area === 'mid' ? southMid : southFar).push(house);
+      else (area === 'near' ? northNear : area === 'mid' ? northMid : northFar).push(house);
       seed += 13;
     }
   }
 
-  const north = makeHousingZone(parent, collisionBoxes, 'North residential neighborhood', northHouses, new THREE.Vector3(-240, 0, 230));
-  const south = makeHousingZone(parent, collisionBoxes, 'South residential neighborhood', southHouses, new THREE.Vector3(-240, 0, -230));
-  cullZones.push(north, south);
+  // Six coarse residential chunks: shared instancing limits draw calls, while detail groups can be culled independently.
+  cullZones.push(
+    makeHousingZone(parent, collisionBoxes, 'North residential neighborhood · east', northNear, new THREE.Vector3(-240, 0, 230), 220),
+    makeHousingZone(parent, collisionBoxes, 'North residential neighborhood · west', northMid, new THREE.Vector3(-480, 0, 230), 150),
+    makeHousingZone(parent, collisionBoxes, 'North residential neighborhood · outer', northFar, new THREE.Vector3(-680, 0, 230), 180),
+    makeHousingZone(parent, collisionBoxes, 'South residential neighborhood · east', southNear, new THREE.Vector3(-240, 0, -230), 220),
+    makeHousingZone(parent, collisionBoxes, 'South residential neighborhood · west', southMid, new THREE.Vector3(-480, 0, -230), 150),
+    makeHousingZone(parent, collisionBoxes, 'South residential neighborhood · outer', southFar, new THREE.Vector3(-680, 0, -230), 180),
+  );
 
   const publicFacilities = new THREE.Group();
   publicFacilities.name = 'Public facilities and recreation';
