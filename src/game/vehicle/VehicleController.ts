@@ -16,7 +16,7 @@ type ModelWheel = {
   baseRotationZ: number;
   spin: number;
 };
-const REAL_CAR_MODEL_URL = `${import.meta.env.BASE_URL}models/kenney-sedan.glb`;
+const REAL_CAR_MODEL_URL = 'models/kenney-sedan.glb';
 const CAR_WHEEL_RADIUS = 0.31;
 
 export class VehicleController {
