@@ -6,11 +6,12 @@ export class FollowCamera {
   private pitch = 0.24;
   private distance = 8.5;
   private readonly scene: THREE.Scene;
-  private readonly target: THREE.Object3D;
+  private target: THREE.Object3D;
   private readonly desiredPosition = new THREE.Vector3();
   private readonly lookTarget = new THREE.Vector3();
   private readonly raycaster = new THREE.Raycaster();
   private readonly direction = new THREE.Vector3();
+  private readonly targetOffset = new THREE.Vector3(0, 1.35, 0);
   private readonly obstacles: THREE.Object3D[] = [];
 
   constructor(scene: THREE.Scene, target: THREE.Object3D) {
@@ -21,6 +22,12 @@ export class FollowCamera {
     this.camera.position.set(0, 5, 9);
   }
 
+  setTarget(target: THREE.Object3D, vehicleMode = false): void {
+    this.target = target;
+    this.targetOffset.set(0, vehicleMode ? 1.05 : 1.35, 0);
+    this.distance = vehicleMode ? 10.5 : 8.5;
+  }
+
   update(_dt: number, dx: number, dy: number, zoom: number): void {
     this.yaw -= dx * 0.0025;
     this.pitch = THREE.MathUtils.clamp(this.pitch - dy * 0.002, -0.12, 0.85);
@@ -28,7 +35,7 @@ export class FollowCamera {
   }
 
   follow(dt: number): void {
-    this.lookTarget.copy(this.target.position).add(new THREE.Vector3(0, 1.35, 0));
+    this.lookTarget.copy(this.target.position).add(this.targetOffset);
     const horizontal = Math.cos(this.pitch) * this.distance;
     this.desiredPosition.set(
       this.lookTarget.x + Math.sin(this.yaw) * horizontal,
