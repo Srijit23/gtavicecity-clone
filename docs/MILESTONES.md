@@ -19,7 +19,12 @@
 - [ ] Upgrade collision broad-phase/spatial acceleration and verify gameplay in a real browser
 
 ## Milestone C: Vehicle
-- [ ] One vehicle with physics, suspension, driving controls, entry and exit
+- [x] Build a detailed procedural coupe with body panels, glazing, interior, lighting, chrome, and four wheel/rim assemblies
+- [x] Add fixed-step signed-speed vehicle dynamics, acceleration, braking, reverse, steering, drag, and collision response
+- [x] Add per-wheel suspension probes, wheel rotation/steering, and body pitch/roll under acceleration and cornering
+- [x] Integrate E-to-enter/exit state transitions, player motion reset, on-foot vehicle collision, and a driving follow-camera
+- [x] Add speed readout and contextual vehicle-control hints
+- [ ] Verify entry, driving, braking, reversing, exit, and walking transitions in a real browser
 
 ## Milestone D and beyond
 - [ ] Playable district collision and expanded world geometry
