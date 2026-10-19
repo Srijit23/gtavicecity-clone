@@ -52,6 +52,9 @@ function createGroundTexture(): THREE.CanvasTexture | undefined {
 export function createWorld(): WorldBundle {
   const root = new THREE.Group();
   root.name = 'Neon Coast playable district';
+  const centralDistrict = new THREE.Group();
+  centralDistrict.name = 'Central art-deco district';
+  root.add(centralDistrict);
   const animated: Array<{ object: THREE.Object3D; baseY: number; phase: number; amplitude: number }> = [];
   const collisionBoxes: THREE.Box3[] = [];
   const sharedBoxGeometry = new THREE.BoxGeometry(1, 1, 1);
@@ -78,7 +81,7 @@ export function createWorld(): WorldBundle {
   const addBox = (
     name: string, x: number, y: number, z: number,
     sx: number, sy: number, sz: number, material: THREE.Material,
-    obstacle = false, parent: THREE.Object3D = root,
+    obstacle = false, parent: THREE.Object3D = centralDistrict,
   ): THREE.Mesh => {
     const mesh = new THREE.Mesh(sharedBoxGeometry, material);
     mesh.name = name;
@@ -102,7 +105,7 @@ export function createWorld(): WorldBundle {
     matrices.forEach((matrix, index) => instances.setMatrixAt(index, matrix));
     instances.castShadow = false;
     instances.receiveShadow = true;
-    root.add(instances);
+    centralDistrict.add(instances);
     return instances;
   };
 
@@ -195,20 +198,20 @@ export function createWorld(): WorldBundle {
   windowFrameMatrices.forEach((matrix, index) => windowFrames.setMatrixAt(index, matrix));
   windowFrames.castShadow = false;
   windowFrames.receiveShadow = true;
-  root.add(windowFrames);
+  centralDistrict.add(windowFrames);
   for (let materialIndex = 0; materialIndex < 2; materialIndex += 1) {
     const matrices = windowPaneMatrices[materialIndex];
     const panes = new THREE.InstancedMesh(windowPaneGeometry, windowMaterials[materialIndex], matrices.length);
     matrices.forEach((matrix, index) => panes.setMatrixAt(index, matrix));
     panes.castShadow = false;
-    root.add(panes);
+    centralDistrict.add(panes);
   }
 
   // The Coastline Diner is a genuinely enterable room. The east-facing doorway is left open;
   // its perimeter walls are separate collision meshes, so the player can cross the threshold.
   const diner = new THREE.Group();
   diner.name = 'Coastline Diner interactive interior';
-  root.add(diner);
+  centralDistrict.add(diner);
   const dx = -24.2;
   const dz = 5.2;
   const roomW = 11.2;
@@ -264,13 +267,13 @@ export function createWorld(): WorldBundle {
   const dinerSignLetters = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 4.4), neonPink);
   dinerSign.add(signPanel, dinerSignLetters);
   dinerSign.position.set(right + 0.25, 3.3, dz);
-  root.add(dinerSign);
+  centralDistrict.add(dinerSign);
   const dinerGlow = new THREE.PointLight('#ff65bb', 8, 16, 2);
   dinerGlow.position.set(dx, 2.8, dz);
-  root.add(dinerGlow);
+  centralDistrict.add(dinerGlow);
   const dinerCeilingLight = new THREE.PointLight('#ffdda7', 12, 11, 2);
   dinerCeilingLight.position.set(dx - 1.2, 2.9, dz - 1.6);
-  root.add(dinerCeilingLight);
+  centralDistrict.add(dinerCeilingLight);
   // Two street-side planters frame the entrance without blocking the doorway.
   for (const z of [dz - 2.0, dz + 2.0]) {
     addBox('Diner entrance planter', right + 1.1, 0.1, z, 0.7, 0.55, 0.7, mat('#9b7055'), true);
@@ -300,11 +303,11 @@ export function createWorld(): WorldBundle {
   palmTrunks.forEach((matrix, i) => trunkInstances.setMatrixAt(i, matrix));
   trunkInstances.castShadow = true;
   trunkInstances.receiveShadow = true;
-  root.add(trunkInstances);
+  centralDistrict.add(trunkInstances);
   const leafInstances = new THREE.InstancedMesh(leafGeo, palmLeafMaterial, palmLeaves.length);
   palmLeaves.forEach((matrix, i) => leafInstances.setMatrixAt(i, matrix));
   leafInstances.castShadow = true;
-  root.add(leafInstances);
+  centralDistrict.add(leafInstances);
 
   // Benches, waste bins, street lamps and warm bollards add scale to the sidewalks.
   for (let z = -90; z <= 90; z += 30) {
@@ -440,12 +443,13 @@ void main() {
   root.add(new THREE.HemisphereLight('#b7d7f5', '#bf8d70', 1.5));
   const waterfrontFill = new THREE.PointLight('#e74f9b', 12, 38, 2);
   waterfrontFill.position.set(-38, 7, -17);
-  root.add(waterfrontFill);
+  centralDistrict.add(waterfrontFill);
 
   const skyFog = new THREE.Fog('#e7aa96', 95, 235);
   // Scene background/fog is assigned by main through the world root's userData.
   root.userData.fog = skyFog;
 
+  let centralCullClock = 0;
   let fWasDown = false;
   let dinerActivated = false;
   let interactionMessage = '';
@@ -477,7 +481,15 @@ void main() {
     collisionBoxes,
     update: (dt, elapsed, focusPosition) => {
       for (const item of animated) item.object.position.y = item.baseY + Math.sin(elapsed * 1.6 + item.phase) * item.amplitude;
-      if (focusPosition) expansion.update(dt, focusPosition);
+      if (focusPosition) {
+        centralCullClock += dt;
+        if (centralCullClock >= 0.25) {
+          centralCullClock = 0;
+          const centralDistanceSq = focusPosition.x * focusPosition.x + focusPosition.z * focusPosition.z;
+          centralDistrict.visible = centralDistanceSq < 700 * 700;
+        }
+        expansion.update(dt, focusPosition);
+      }
     },
     interact,
   };
