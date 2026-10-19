@@ -152,8 +152,27 @@ async function initialize(): Promise<void> {
   const closePauseMenu = (): void => { paused = false; pauseScreen.classList.add('hidden'); input?.requestPointerLock(); };
   pauseButton.addEventListener('click', openPauseMenu);
   resumeButton.addEventListener('click', closePauseMenu);
-  helpButton.addEventListener('click', () => helpPanel.classList.toggle('hidden'));
-  closeHelpButton.addEventListener('click', () => helpPanel.classList.add('hidden'));
+  helpButton.addEventListener('click', () => {
+    paused = true;
+    pauseScreen.classList.add('hidden');
+    helpPanel.classList.remove('hidden');
+    input?.releasePointerLock();
+  });
+  closeHelpButton.addEventListener('click', () => {
+    helpPanel.classList.add('hidden');
+    paused = false;
+    input?.requestPointerLock();
+  });
+  byId<HTMLButtonElement>('menu-time-button').addEventListener('click', () => {
+    environmentController?.cycleMode();
+    updateTimeButton();
+  });
+  byId<HTMLButtonElement>('menu-audio-button').addEventListener('click', () => {
+    ambienceAudio.setMuted(!ambienceAudio.isMuted);
+    audioButton.textContent = ambienceAudio.isMuted ? 'SOUND: OFF' : 'SOUND: ON';
+    if (!ambienceAudio.isMuted && started) ambienceAudio.start();
+  });
+  byId<HTMLButtonElement>('restart-button').addEventListener('click', () => window.location.reload());
   updateTimeButton();
   renderer.domElement.addEventListener('click', () => {
     if (started && document.pointerLockElement !== renderer?.domElement) input?.requestPointerLock();
