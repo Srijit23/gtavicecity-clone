@@ -245,7 +245,11 @@ export class VehicleController {
         const modelContent = new THREE.Group();
         modelContent.name = 'Z-up to Y-up asset transform';
         // Source axes: Z-up, vehicle nose along -Y. Convert up to +Y and nose to -Z.
-        modelContent.rotation.set(-Math.PI / 2, Math.PI, 0);
+        // Explicit quaternion composition avoids Euler-order ambiguity: convert Z-up to Y-up,
+        // then reverse the longitudinal axis so the hood points along controller -Z.
+        const zUpToYUp = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+        const sourceForwardToController = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+        modelContent.quaternion.copy(sourceForwardToController).multiply(zUpToYUp);
         modelContent.add(gltf.scene);
         modelRoot.add(modelContent);
         modelRoot.traverse((node) => {
