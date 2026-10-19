@@ -135,6 +135,21 @@ export class PlayerController {
     }
   }
 
+  setVehicleMode(inVehicle: boolean): void {
+    this.object.visible = !inVehicle;
+    this.velocity.set(0, 0, 0);
+    this.desiredVelocity.set(0, 0, 0);
+    this.verticalVelocity = 0;
+    this.grounded = true;
+    this.jumpPressedLastFrame = false;
+    if (!inVehicle) this.playState('idle');
+  }
+
+  teleport(position: THREE.Vector3): void {
+    this.object.position.copy(position);
+    this.setVehicleMode(false);
+  }
+
   update(dt: number, keys: ReadonlySet<string>, cameraYaw: number): void {
     const forwardX = -Math.sin(cameraYaw);
     const forwardZ = -Math.cos(cameraYaw);
