@@ -68,8 +68,8 @@ export class VehicleController {
     for (const wheel of this.frontWheels) wheel.rotation.y = this.steering;
     const roll = this.speed * dt / this.wheelRadius;
     for (const wheel of this.wheels) {
-      const tire = wheel.userData.tire as THREE.Mesh | undefined;
-      if (tire) tire.rotation.x += roll;
+      const spin = wheel.userData.spin as THREE.Group | undefined;
+      if (spin) spin.rotation.x += roll;
     }
   }
 
@@ -128,17 +128,22 @@ export class VehicleController {
         const pivot = new THREE.Group();
         pivot.position.set(x, 0.38, z);
         this.root.add(pivot);
-        const tire = new THREE.Mesh(new THREE.CylinderGeometry(this.wheelRadius, this.wheelRadius, 0.22, 12), rubber);
+        // Steering pivot and rolling axle are separate transforms. This keeps
+        // the tyre's circular cross-section stable while it steers and spins.
+        const spin = new THREE.Group();
+        pivot.add(spin);
+        const tire = new THREE.Mesh(new THREE.CylinderGeometry(this.wheelRadius, this.wheelRadius, 0.24, 24, 1, false), rubber);
         tire.rotation.z = Math.PI / 2;
         tire.castShadow = true;
-        pivot.add(tire);
-        const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.235, 10), alloy);
+        tire.receiveShadow = true;
+        spin.add(tire);
+        const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.255, 16), alloy);
         hub.rotation.z = Math.PI / 2;
-        pivot.add(hub);
-        const center = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.24, 8), trim);
+        spin.add(hub);
+        const center = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.26, 12), trim);
         center.rotation.z = Math.PI / 2;
-        pivot.add(center);
-        pivot.userData.tire = tire;
+        spin.add(center);
+        pivot.userData.spin = spin;
         this.wheels.push(pivot);
         if (z < 0) this.frontWheels.push(pivot);
       }
