@@ -181,7 +181,7 @@ export class VehicleController {
       if (this.chassisBounds.max.y <= box.min.y || this.chassisBounds.min.y >= box.max.y) continue;
       if (this.chassisBounds.intersectsBox(box)) return true;
     }
-    return position.x < -105 || position.x > 105 || position.z < -112 || position.z > 112;
+    return position.x < -820 || position.x > 24 || position.z < -415 || position.z > 415;
   }
 
   private buildVehicle(): void {
