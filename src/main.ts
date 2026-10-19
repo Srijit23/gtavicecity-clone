@@ -106,7 +106,7 @@ async function initialize(): Promise<void> {
 
   const onResize = (): void => {
     if (!renderer || !cameraRig) return;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.setSize(window.innerWidth, window.innerHeight);
     cameraRig.resize(window.innerWidth, window.innerHeight);
   };
@@ -185,7 +185,7 @@ async function initialize(): Promise<void> {
     animationFrame = window.requestAnimationFrame(animate);
     const dt = Math.min(clock.getDelta(), 0.05);
     const elapsed = clock.elapsedTime;
-    world.update(dt, elapsed);
+    world.update(dt, elapsed, vehicleController?.isDriving ? vehicleController.object.position : world.player.position);
     environmentController?.update(dt);
     ambienceAudio.updateNight(environmentController?.nightAmount ?? 0.15);
 
