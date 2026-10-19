@@ -244,7 +244,8 @@ export class VehicleController {
         modelRoot.name = 'Licensed Car Concept GLB';
         const modelContent = new THREE.Group();
         modelContent.name = 'Z-up to Y-up asset transform';
-        modelContent.rotation.x = Math.PI / 2;
+        // Source axes: Z-up, vehicle nose along -Y. Convert up to +Y and nose to -Z.
+        modelContent.rotation.set(-Math.PI / 2, Math.PI, 0);
         modelContent.add(gltf.scene);
         modelRoot.add(modelContent);
         modelRoot.traverse((node) => {
