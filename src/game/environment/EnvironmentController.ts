@@ -9,6 +9,7 @@ export class EnvironmentController {
   private readonly sun: THREE.DirectionalLight;
   private readonly hemisphere: THREE.HemisphereLight;
   private readonly skyMaterial: THREE.ShaderMaterial;
+  private skyDome?: THREE.Mesh;
   private cloudLayer?: THREE.Group;
   private cloudMaterial?: THREE.MeshBasicMaterial;
   private sunDisc?: THREE.Mesh;
@@ -80,6 +81,7 @@ export class EnvironmentController {
       throw new Error('Gradient sky dome is missing or does not use the expected shader material.');
     }
     this.skyMaterial = sky.material;
+    this.skyDome = sky;
     const clouds = root.getObjectByName('Sky cloud layer');
     if (clouds instanceof THREE.Group) this.cloudLayer = clouds;
     const cloudMesh = root.getObjectByName('Instanced slow-moving cloud puffs');
@@ -104,7 +106,7 @@ export class EnvironmentController {
   get currentMode(): TimeOfDay { return this.mode; }
   get nightAmount(): number { return this.night; }
 
-  update(dt: number): void {
+  update(dt: number, focusPosition?: THREE.Vector3): void {
     this.elapsed += dt;
     const phase = this.mode === 'day' ? 0.23
       : this.mode === 'sunset' ? 0.48
@@ -127,12 +129,13 @@ export class EnvironmentController {
     this.fog.color.copy(this.fogTint);
     this.fog.near = 230 + daylight * 55;
     this.fog.far = 560 + daylight * 220;
+    if (focusPosition && this.skyDome) this.skyDome.position.copy(focusPosition);
     const solarAngle = phase * Math.PI * 2;
     const lunarAngle = solarAngle + Math.PI;
     this.sun.position.set(Math.cos(solarAngle) * 72, 8 + daylight * 48, Math.sin(solarAngle) * 72);
-    this.sunDisc?.position.set(Math.cos(solarAngle) * 790, 130 + Math.sin(solarAngle) * 460, -360);
+    this.sunDisc?.position.set(Math.cos(solarAngle) * 760, 130 + Math.sin(solarAngle) * 430, -360).add(focusPosition ?? new THREE.Vector3());
     if (this.sunDisc) this.sunDisc.visible = Math.sin(solarAngle) > -0.08;
-    this.moonDisc?.position.set(Math.cos(lunarAngle) * 790, 130 + Math.sin(lunarAngle) * 460, -360);
+    this.moonDisc?.position.set(Math.cos(lunarAngle) * 760, 130 + Math.sin(lunarAngle) * 430, -360).add(focusPosition ?? new THREE.Vector3());
     if (this.moonDisc) this.moonDisc.visible = night > 0.38 && Math.sin(lunarAngle) > -0.08;
     if (this.cloudLayer) this.cloudLayer.rotation.y += dt * 0.0009;
     if (this.cloudMaterial) this.cloudMaterial.opacity = 0.06 + daylight * 0.3;
