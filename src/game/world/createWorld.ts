@@ -383,7 +383,7 @@ void main() {
     depthWrite: false,
     fog: false,
   });
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(1200, 32, 20), skyMaterial);
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(950, 32, 20), skyMaterial);
   sky.name = 'Sky gradient dome';
   root.add(sky);
 
