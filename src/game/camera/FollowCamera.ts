@@ -6,7 +6,8 @@ export class FollowCamera {
   private pitch = 0.24;
   private distance = 8.5;
   private readonly scene: THREE.Scene;
-  private readonly target: THREE.Object3D;
+  private target: THREE.Object3D;
+  private driving = false;
   private readonly desiredPosition = new THREE.Vector3();
   private readonly lookTarget = new THREE.Vector3();
   private readonly raycaster = new THREE.Raycaster();
@@ -21,10 +22,19 @@ export class FollowCamera {
     this.camera.position.set(0, 5, 9);
   }
 
+  setTarget(target: THREE.Object3D, driving: boolean): void {
+    this.target = target;
+    if (this.driving !== driving) {
+      this.driving = driving;
+      this.distance = driving ? 10.5 : 8.5;
+      this.pitch = driving ? 0.17 : 0.24;
+    }
+  }
+
   update(_dt: number, dx: number, dy: number, zoom: number): void {
     this.yaw -= dx * 0.0025;
-    this.pitch = THREE.MathUtils.clamp(this.pitch - dy * 0.002, -0.12, 0.85);
-    this.distance = THREE.MathUtils.clamp(this.distance + zoom * 0.8, 3.5, 15);
+    this.pitch = THREE.MathUtils.clamp(this.pitch - dy * 0.002, this.driving ? -0.02 : -0.12, this.driving ? 0.62 : 0.85);
+    this.distance = THREE.MathUtils.clamp(this.distance + zoom * 0.8, this.driving ? 6.5 : 3.5, this.driving ? 17 : 15);
   }
 
   follow(dt: number): void {
