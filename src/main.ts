@@ -3,6 +3,7 @@ import { InputManager } from './game/input/InputManager';
 import { createWorld } from './game/world/createWorld';
 import { FollowCamera } from './game/camera/FollowCamera';
 import { PlayerController } from './game/player/PlayerController';
+import { VehicleController } from './game/vehicle/VehicleController';
 import './style.css';
 
 const byId = <T extends HTMLElement>(id: string): T => {
@@ -26,6 +27,7 @@ let renderer: THREE.WebGLRenderer | undefined;
 let input: InputManager | undefined;
 let cameraRig: FollowCamera | undefined;
 let playerController: PlayerController | undefined;
+let vehicleController: VehicleController | undefined;
 let animationFrame = 0;
 let started = false;
 let disposed = false;
@@ -77,6 +79,7 @@ async function initialize(): Promise<void> {
   loadingMessage.textContent = 'Loading the rigged protagonist and animation clips…';
   await playerController.loadCharacter();
 
+  vehicleController = new VehicleController(world.root, playerController, world.collisionBoxes);
   cameraRig = new FollowCamera(worldScene, world.player);
   input = new InputManager(renderer.domElement);
   const clock = new THREE.Clock();
@@ -123,9 +126,11 @@ async function initialize(): Promise<void> {
     world.update(dt, elapsed);
 
     if (started && !document.hidden) {
+      vehicleController?.update(dt, input.keys);
+      cameraRig.setTarget(vehicleController?.isDriving ? vehicleController.object : world.player, Boolean(vehicleController?.isDriving));
       cameraRig.update(dt, input.lookDeltaX, input.lookDeltaY, input.zoomDelta);
       input.consumeMouseDeltas();
-      playerController.update(dt, input.keys, cameraRig.yaw);
+      if (!vehicleController?.isDriving) playerController.update(dt, input.keys, cameraRig.yaw);
     } else {
       cameraRig.update(dt, 0, 0, 0);
     }
@@ -134,7 +139,16 @@ async function initialize(): Promise<void> {
     renderer.render(worldScene, cameraRig.camera);
     if (elapsed - lastHudUpdate > 0.15 && started) {
       const position = world.player.position;
-      positionReadout.textContent = `X ${position.x.toFixed(1)} · Z ${position.z.toFixed(1)} · ${playerController.isUsingRiggedCharacter ? 'RIGGED' : 'FALLBACK'}`;
+      positionReadout.textContent = vehicleController?.isDriving
+        ? `DRIVING · ${vehicleController.speedKmh} KM/H`
+        : `X ${position.x.toFixed(1)} · Z ${position.z.toFixed(1)} · ${playerController.isUsingRiggedCharacter ? 'RIGGED' : 'FALLBACK'}`;
+      const vehiclePrompt = document.getElementById('vehicle-prompt');
+      if (vehiclePrompt) {
+        vehiclePrompt.textContent = vehicleController?.isDriving
+          ? 'W ACCELERATE · S BRAKE / REVERSE · A / D STEER · SPACE HANDBRAKE · E EXIT'
+          : vehicleController?.nearVehicle ? 'PRESS E TO ENTER THE COUPE' : '';
+        vehiclePrompt.classList.toggle('visible', Boolean(vehicleController?.isDriving || vehicleController?.nearVehicle));
+      }
       lastHudUpdate = elapsed;
     }
   };
