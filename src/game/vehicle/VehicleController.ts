@@ -24,8 +24,6 @@ export class VehicleController {
   private readonly wheels: WheelAssembly[] = [];
   private readonly modelWheels: ModelWheel[] = [];
   private realModelLoaded = false;
-  private readonly raycaster = new THREE.Raycaster();
-  private readonly down = new THREE.Vector3(0, -1, 0);
   private readonly chassisBounds = new THREE.Box3();
   private speed = 0;
   private steering = 0;
@@ -337,13 +335,9 @@ export class VehicleController {
       if (this.realModelLoaded) continue;
       if (assembly.front) assembly.pivot.rotation.y = this.steering * 0.78;
       assembly.wheel.rotation.x += this.speed * dt / 0.34;
-      const roadProbe = new THREE.Vector3(this.object.position.x, this.object.position.y + 0.8, this.object.position.z);
-      roadProbe.add(new THREE.Vector3(assembly.pivot.position.x, 0, assembly.pivot.position.z).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.object.rotation.y));
-      this.raycaster.set(roadProbe, this.down);
-      this.raycaster.far = 1.15;
-      const hits = this.raycaster.intersectObjects(this.world.children, true).filter((hit) => hit.object.name.includes('boulevard') || hit.object.name.includes('street') || hit.object.name.includes('Sidewalk'));
-      const compression = hits.length ? THREE.MathUtils.clamp(0.8 - hits[0].distance, -0.06, 0.08) : 0;
-      assembly.pivot.position.y = assembly.restY - compression + Math.sin(this.suspensionPhase + assembly.side * 0.6 + (assembly.front ? 0 : 1.2)) * 0.012;
+      // Lightweight suspension animation; avoid recursive scene raycasts on every wheel.
+      const compression = Math.sin(this.suspensionPhase + assembly.side * 0.6 + (assembly.front ? 0 : 1.2)) * 0.018;
+      assembly.pivot.position.y = assembly.restY - compression;
     }
   }
 
