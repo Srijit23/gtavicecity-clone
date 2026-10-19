@@ -1,12 +1,12 @@
 # Asset credits
 
-## Car Concept
+## Low-poly red sedan
 
-- **Asset:** Car Concept
-- **Source:** https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CarConcept
-- **Model URL used by the game:** https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CarConcept/glTF-Binary/CarConcept.glb
-- **Author:** Eric Chadwick / Darmstadt Graphics Group
-- **License:** Creative Commons Attribution 4.0 International (CC BY 4.0)
-- **License text:** https://creativecommons.org/licenses/by/4.0/
+- **Asset:** Sedan from the Kenney Car Kit
+- **Original source:** https://kenney.nl/assets/car-kit
+- **Open-format mirror used to obtain the model:** https://github.com/Hidencod/tge-assets/tree/2c8950b716e6765930b2b51409c59adf3d66fd5c/packs/car-kit
+- **Bundled path:** `public/models/kenney-sedan.glb`
+- **License:** CC0 1.0 Universal (public domain dedication)
+- **License text:** https://creativecommons.org/publicdomain/zero/1.0/
 
-The model is loaded asynchronously. The game keeps its procedural red coupe visible if loading fails or the imported model has invalid bounds.
+The 184,504-byte GLB and its embedded texture are included in the repository. Runtime car loading does not contact a third-party model CDN. Four named wheel nodes (`wheel-front-left`, `wheel-front-right`, `wheel-back-left`, and `wheel-back-right`) are animated by the vehicle controller.
