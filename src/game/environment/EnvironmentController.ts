@@ -5,7 +5,6 @@ export type TimeOfDay = 'auto' | 'day' | 'sunset' | 'night';
 /** Smoothly blends the city's sky, fog, sun, ambient fill, and exposure across a day/night cycle. */
 export class EnvironmentController {
   private readonly scene: THREE.Scene;
-  private readonly root: THREE.Group;
   private readonly renderer: THREE.WebGLRenderer;
   private readonly sun: THREE.DirectionalLight;
   private readonly hemisphere: THREE.HemisphereLight;
@@ -28,7 +27,6 @@ export class EnvironmentController {
 
   constructor(scene: THREE.Scene, root: THREE.Group, renderer: THREE.WebGLRenderer) {
     this.scene = scene;
-    this.root = root;
     this.renderer = renderer;
     let sun: THREE.DirectionalLight | undefined;
     let hemi: THREE.HemisphereLight | undefined;
