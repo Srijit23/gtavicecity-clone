@@ -12,11 +12,13 @@ export class FollowCamera {
   private readonly lookTarget = new THREE.Vector3();
   private readonly raycaster = new THREE.Raycaster();
   private readonly direction = new THREE.Vector3();
+  private readonly obstacles: THREE.Object3D[] = [];
 
   constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, target: THREE.Object3D) {
     this.renderer = renderer;
     this.scene = scene;
     this.target = target;
+    this.scene.traverse((object) => { if (object.userData.cameraObstacle === true) this.obstacles.push(object); });
     this.camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 350);
     this.camera.position.set(0, 5, 9);
   }
@@ -38,8 +40,7 @@ export class FollowCamera {
     this.direction.copy(this.desiredPosition).sub(this.lookTarget).normalize();
     this.raycaster.set(this.lookTarget, this.direction);
     this.raycaster.far = this.distance;
-    const obstacles = this.scene.children.filter((object) => object.userData.cameraObstacle === true);
-    const hits = this.raycaster.intersectObjects(obstacles, true);
+    const hits = this.raycaster.intersectObjects(this.obstacles, true);
     if (hits.length > 0) this.desiredPosition.copy(hits[0].point).addScaledVector(this.direction, -0.35);
     const blend = 1 - Math.exp(-Math.max(dt, 0) * 8);
     this.camera.position.lerp(this.desiredPosition, blend);
