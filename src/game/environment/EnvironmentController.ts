@@ -13,6 +13,7 @@ export class EnvironmentController {
   private readonly fog: THREE.Fog;
   private mode: TimeOfDay = 'auto';
   private elapsed = 0;
+  private night = 0.15;
   private readonly sunStart = new THREE.Vector3(-28, 48, 22);
   private readonly colors = {
     daySky: new THREE.Color('#e7aa96'),
@@ -54,6 +55,7 @@ export class EnvironmentController {
   }
 
   get currentMode(): TimeOfDay { return this.mode; }
+  get nightAmount(): number { return this.night; }
 
   update(dt: number): void {
     this.elapsed += dt;
@@ -65,6 +67,7 @@ export class EnvironmentController {
     const daylight = THREE.MathUtils.clamp(Math.sin((phase + 0.02) * Math.PI * 2) * 0.5 + 0.5, 0.08, 1);
     const sunset = Math.exp(-Math.pow((phase - 0.49) / 0.12, 2));
     const night = 1 - daylight;
+    this.night = night;
     const sky = this.colors.nightSky.clone().lerp(this.colors.daySky, daylight).lerp(this.colors.sunsetSky, sunset * 0.86);
     const fog = this.colors.nightFog.clone().lerp(this.colors.dayFog, daylight).lerp(this.colors.sunsetFog, sunset * 0.82);
     this.scene.background = sky;
