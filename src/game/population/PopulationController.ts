@@ -69,7 +69,6 @@ export class PopulationController {
   private elapsed = 0;
   private tickAccumulator = 0;
   private readonly tickRate = 1 / 20;
-  private readonly scratch = new THREE.Vector3();
 
   constructor(root: THREE.Group, player: THREE.Group, playerVehicle: THREE.Group, collisionBoxes: THREE.Box3[]) {
     this.root = root;
@@ -159,7 +158,7 @@ export class PopulationController {
       const ped: Pedestrian = {
         root, torso, head, leftArm, rightArm, leftLeg, rightLeg,
         route, routeIndex: route.length > 1 ? 1 : 0,
-        speed: PED_SPEED_MIN + (i % 4) * 0.17, phase: i * 1.7, active: false,
+        speed: PED_SPEED_MIN + ((i % 5) / 4) * (PED_SPEED_MAX - PED_SPEED_MIN), phase: i * 1.7, active: false,
       };
       root.position.copy(this.graph[startNode].position);
       root.position.x += (i % 3 - 1) * 0.26;
@@ -300,9 +299,7 @@ export class PopulationController {
         const gap = (other.root.position.z - car.root.position.z) * car.direction;
         if (gap > 0 && gap < 10) targetSpeed = Math.min(targetSpeed, Math.max(0, (gap - 3.8) * 1.1));
       }
-      const playerZ = focus.z;
       const sameLane = Math.abs(focus.x - car.laneX) < 2.2;
-      const forwardGap = (playerZ - car.root.position.z) * car.direction;
       if (sameLane && Math.abs(focus.z - car.root.position.z) < 8.5) targetSpeed = 0;
       // Stop before a pedestrian occupies a boulevard crosswalk.
       for (const ped of this.pedestrians) {
