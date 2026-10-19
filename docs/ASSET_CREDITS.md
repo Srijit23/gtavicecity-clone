@@ -1,13 +1,11 @@
 # Asset credits
 
-## Car Concept (red coupe)
+## Low-poly saloon car
 
-- **Asset:** Car Concept, including the model and textures
-- **Artist:** Eric Chadwick
-- **Owner / publisher:** Darmstadt Graphics Group GmbH, distributed through the Khronos Group glTF Sample Assets repository
-- **Source:** https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CarConcept
-- **Model URL used by the game:** https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CarConcept/glTF-Binary/CarConcept.glb
-- **License:** Creative Commons Attribution 4.0 International (CC BY 4.0)
-- **License text:** https://creativecommons.org/licenses/by/4.0/
+- **Asset:** Saloon (Pixel Modern City Street)
+- **Source / asset page:** https://3dassets.dev/assets/pixel-modern-city-street-saloon-d57a02b7
+- **Model URL used by the game:** https://cdn.3dassets.dev/assets/29025/v1/model.glb
+- **License:** CC0 1.0 Universal (public domain dedication)
+- **License text:** https://creativecommons.org/publicdomain/zero/1.0/
 
-The model is loaded asynchronously. Until it finishes loading, the game displays its procedural red-car fallback. If the external model cannot be reached or does not expose all four named wheel pivots, the fallback remains active.
+The lightweight model is loaded asynchronously. The game keeps a procedural red coupe visible until the asset loads; if the network request fails or the model has invalid bounds, the fallback remains active.
