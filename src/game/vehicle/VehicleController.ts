@@ -267,7 +267,9 @@ export class VehicleController {
         // Verified source axes: Y is up; named front wheels sit at +Z.
         // Controller motion is along -Z, so rotate this visual asset by 180° around Y.
         modelRoot.rotation.y = Math.PI;
-        modelRoot.scale.set(1.25, 1, 1.55);
+        // Keep the model's scale uniform. Non-uniform Z scaling stretches the tires into ovals.
+        // Wheelbase is adjusted at the named wheel pivots below instead of distorting wheel geometry.
+        modelRoot.scale.setScalar(1);
         modelRoot.add(gltf.scene);
 
         // Stretch the wheelbase to fit the ~4 m chassis while keeping tire profiles round.
@@ -276,9 +278,9 @@ export class VehicleController {
         modelRoot.traverse((node) => {
           if (!/^wheel-(front|back)-(left|right)$/i.test(node.name)) return;
           const front = /^wheel-front-/i.test(node.name);
-          node.position.x *= 1.35;
+          node.position.x *= 1.12;
           node.position.z *= 1.3;
-          node.scale.z *= 1 / 1.55;
+          // Do not scale wheel pivots non-uniformly: their tire meshes must stay circular.
           wheelNodes.push({
             pivot: node,
             front,
@@ -303,6 +305,7 @@ export class VehicleController {
         }
 
         // Fit the model to the controller footprint and align the lowest wheel point to ground.
+        // A single fit factor preserves the sedan body and wheel cross-sections without ovaling tires.
         const fitScale = Math.min(1.92 / sourceSize.x, 4.15 / sourceSize.z, 1.58 / sourceSize.y);
         modelRoot.scale.multiplyScalar(fitScale);
         modelRoot.updateMatrixWorld(true);
