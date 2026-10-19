@@ -26,8 +26,16 @@
 - [x] Add speed readout and contextual vehicle-control hints
 - [ ] Verify entry, driving, braking, reversing, exit, and walking transitions in a real browser
 
-## Milestone D and beyond
-- [ ] Playable district collision and expanded world geometry
+## Milestone D: Playable City
+- [x] Expand the central district with connected boulevard, cross streets, lane markings, crosswalks, curbs, sidewalks, promenade, beach and ocean edge
+- [x] Add coherent pastel art-deco blocks, stepped rooflines, facade trim, instanced windows, rooftop equipment, palm-lined streets, benches, bins, lamps, waterfront rails and a neon landmark
+- [x] Build the Coastline Diner as a walk-in interior with an open doorway, separate collidable walls, floor tiles, counter, stools, booths, menu board, neon signage and warm interior lighting
+- [x] Add an F interaction near the counter to order coffee and change the diner neon state
+- [x] Add scene fog and instance repeated foliage/window geometry to control visual depth and draw calls
+- [ ] Verify the district is explorable, all collision boundaries and diner entry/interactions work, and measure FPS on target hardware
+
+## Milestone E and beyond
+- [ ] NPCs and civilian traffic
 - [ ] NPCs and civilian traffic
 - [ ] Missions, navigation, shops, progression, and saving
 - [ ] Audio, day/night cycle, settings, optimization, and release validation
