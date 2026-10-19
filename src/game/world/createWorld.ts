@@ -1,10 +1,11 @@
 import * as THREE from 'three';
+import { createExpansionDistricts } from './ExpansionDistricts';
 
 export interface WorldBundle {
   root: THREE.Group;
   player: THREE.Group;
   collisionBoxes: THREE.Box3[];
-  update: (dt: number, elapsed: number) => void;
+  update: (dt: number, elapsed: number, focusPosition?: THREE.Vector3) => void;
   interact: (playerPosition: THREE.Vector3, keys: ReadonlySet<string>) => string;
 }
 
@@ -65,26 +66,26 @@ export function createWorld(): WorldBundle {
   };
 
   // Warm sand-colored ground plane and continuous asphalt network.
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(270, 270), groundMaterial);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(1150, 850), groundMaterial);
   ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -0.05;
+  ground.position.set(-250, -0.05, 0);
   ground.receiveShadow = true;
   root.add(ground);
 
-  addBox('Oceanfront boulevard', 0, 0, 0, 15, 0.12, 230, roadMaterial);
+  addBox('Oceanfront boulevard', 0, 0, 0, 15, 0.12, 760, roadMaterial);
   addBox('West cross street', -49, 0, -34, 98, 0.12, 10, roadMaterial);
   addBox('Midtown cross street', 43, 0, 19, 98, 0.12, 10, roadMaterial);
   addBox('Marina cross street', -38, 0, 73, 105, 0.12, 10, roadMaterial);
   addBox('North loop street', -39, 0, -87, 108, 0.12, 10, roadMaterial);
-  addBox('West sidewalk', -10.45, 0.02, 0, 4.1, 0.18, 230, sidewalkMaterial);
-  addBox('East sidewalk', 10.45, 0.02, 0, 4.1, 0.18, 230, sidewalkMaterial);
-  addBox('Beach promenade', 22.4, 0.02, 0, 6.7, 0.16, 230, sidewalkMaterial);
-  addBox('West curb', -12.62, 0.02, 0, 0.18, 0.2, 230, curbMaterial);
-  addBox('East curb', 12.62, 0.02, 0, 0.18, 0.2, 230, curbMaterial);
+  addBox('West sidewalk', -10.45, 0.02, 0, 4.1, 0.18, 760, sidewalkMaterial);
+  addBox('East sidewalk', 10.45, 0.02, 0, 4.1, 0.18, 760, sidewalkMaterial);
+  addBox('Beach promenade', 22.4, 0.02, 0, 6.7, 0.16, 760, sidewalkMaterial);
+  addBox('West curb', -12.62, 0.02, 0, 0.18, 0.2, 760, curbMaterial);
+  addBox('East curb', 12.62, 0.02, 0, 0.18, 0.2, 760, curbMaterial);
   const centerDashes: THREE.Matrix4[] = [];
   const leftDashes: THREE.Matrix4[] = [];
   const rightDashes: THREE.Matrix4[] = [];
-  for (let z = -108; z <= 108; z += 8) {
+  for (let z = -378; z <= 378; z += 8) {
     centerDashes.push(new THREE.Matrix4().makeTranslation(0, 0.134, z));
     leftDashes.push(new THREE.Matrix4().makeTranslation(-6.8, 0.134, z));
     rightDashes.push(new THREE.Matrix4().makeTranslation(6.8, 0.134, z));
@@ -98,18 +99,18 @@ export function createWorld(): WorldBundle {
   }
   addInstances('Crosswalk markings', new THREE.BoxGeometry(3.2, 0.018, 0.38), laneMaterial, crosswalkStripes);
 
-  const ocean = new THREE.Mesh(new THREE.PlaneGeometry(92, 260), new THREE.MeshStandardMaterial({ color: '#208da1', roughness: 0.32, metalness: 0.12 }));
+  const ocean = new THREE.Mesh(new THREE.PlaneGeometry(460, 800), new THREE.MeshStandardMaterial({ color: '#208da1', roughness: 0.32, metalness: 0.12 }));
   ocean.rotation.x = -Math.PI / 2;
-  ocean.position.set(72, -0.14, 0);
+  ocean.position.set(255, -0.14, 0);
   ocean.receiveShadow = true;
   root.add(ocean);
-  const beach = new THREE.Mesh(new THREE.PlaneGeometry(14, 260), mat('#e8cda0'));
+  const beach = new THREE.Mesh(new THREE.PlaneGeometry(14, 800), mat('#e8cda0'));
   beach.rotation.x = -Math.PI / 2;
   beach.position.set(29.8, -0.025, 0);
   root.add(beach);
-  const horizon = new THREE.Mesh(new THREE.PlaneGeometry(90, 260), mat('#e5ad91'));
+  const horizon = new THREE.Mesh(new THREE.PlaneGeometry(460, 800), mat('#e5ad91'));
   horizon.rotation.x = -Math.PI / 2;
-  horizon.position.set(119, -0.17, 0);
+  horizon.position.set(492, -0.17, 0);
   root.add(horizon);
 
   // Main street blocks: readable silhouettes, stepped rooflines, facade trim, recessed windows and storefronts.
@@ -242,7 +243,7 @@ export function createWorld(): WorldBundle {
   const leafGeo = new THREE.ConeGeometry(0.34, 3.5, 5);
   const palmTrunks: THREE.Matrix4[] = [];
   const palmLeaves: THREE.Matrix4[] = [];
-  for (let z = -105; z <= 105; z += 21) {
+  for (let z = -378; z <= 378; z += 21) {
     for (const x of [-13.7, 14.0, 26.5]) {
       const trunkMatrix = new THREE.Matrix4().compose(new THREE.Vector3(x, 2.25, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, x > 20 ? -0.12 : 0.08)), new THREE.Vector3(1, 1, 1));
       palmTrunks.push(trunkMatrix);
@@ -291,10 +292,14 @@ export function createWorld(): WorldBundle {
   addBox('Landmark plinth', -37, 0, -17, 2.5, 1.4, 9, darkMetal, true);
   addBox('Landmark neon panel', -38.2, 1.5, -17, 0.16, 4.1, 7.5, darkMetal);
   addBox('Landmark neon line', -38.32, 3.1, -17, 0.08, 0.14, 6.2, neonPink);
-  for (let z = -110; z <= 110; z += 5) {
-    addBox('Promenade rail post ' + z, 26.0, 0.15, z, 0.12, 1.05, 0.12, darkMetal, true);
-  }
-  addBox('Promenade top rail', 26.0, 1.05, 0, 0.16, 0.12, 225, darkMetal, true);
+  // Keep the extended waterfront railing to two draw calls; one compound AABB protects the full edge.
+  const railPosts: THREE.Matrix4[] = [];
+  for (let z = -398; z <= 398; z += 5) railPosts.push(new THREE.Matrix4().makeTranslation(26.0, 0.675, z));
+  addInstances('Instanced promenade rail posts', new THREE.BoxGeometry(0.12, 1.05, 0.12), darkMetal, railPosts);
+  addBox('Promenade top rail', 26.0, 1.05, 0, 0.16, 0.12, 800, darkMetal, true);
+  collisionBoxes.push(new THREE.Box3(new THREE.Vector3(25.85, 0.15, -400), new THREE.Vector3(26.15, 1.2, 400)));
+
+  const expansion = createExpansionDistricts(root, collisionBoxes);
 
   // Rigged player is attached by PlayerController.
   const player = new THREE.Group();
@@ -302,7 +307,7 @@ export function createWorld(): WorldBundle {
   player.position.set(-5, 0.12, 4);
   root.add(player);
 
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(240, 24, 16), new THREE.MeshBasicMaterial({ color: '#efad98', side: THREE.BackSide }));
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(1200, 24, 16), new THREE.MeshBasicMaterial({ color: '#efad98', side: THREE.BackSide }));
   root.add(sky);
   const sun = new THREE.DirectionalLight('#ffe0b6', 3.0);
   sun.position.set(-28, 48, 22);
@@ -352,8 +357,9 @@ export function createWorld(): WorldBundle {
     root,
     player,
     collisionBoxes,
-    update: (_dt, elapsed) => {
+    update: (dt, elapsed, focusPosition) => {
       for (const item of animated) item.object.position.y = item.baseY + Math.sin(elapsed * 1.6 + item.phase) * item.amplitude;
+      if (focusPosition) expansion.update(dt, focusPosition);
     },
     interact,
   };
