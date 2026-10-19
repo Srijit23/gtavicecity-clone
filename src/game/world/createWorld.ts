@@ -121,7 +121,7 @@ export function createWorld(): WorldBundle {
     for (const side of [-1, 1]) {
       const z = -96 + row * 27;
       if (Math.abs(z + 34) < 10 || Math.abs(z - 19) < 10 || Math.abs(z - 73) < 10 || Math.abs(z + 87) < 10) continue;
-      if (side < 0 && Math.abs(z - dz) < 25) continue; // Reserve this block for the enterable diner.
+      if (side < 0 && Math.abs(z - 5.2) < 25) continue; // Reserve this block for the enterable diner.
       const x = side * (19 + (row % 2) * 3.2);
       const width = 10.5 + (row % 3) * 1.7;
       const depth = 15 + ((row + 1) % 3) * 2.4;
