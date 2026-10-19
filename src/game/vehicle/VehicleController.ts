@@ -76,7 +76,8 @@ export class VehicleController {
     const handbrake = keys.has('Space');
     const steeringInput = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
     const oldSpeed = this.speed;
-    const substeps = Math.max(1, Math.ceil(dt / (1 / 120)));
+    // Bound integration work after slow frames while keeping collisions responsive.
+    const substeps = Math.min(4, Math.max(1, Math.ceil(dt / (1 / 60))));
     const step = dt / substeps;
     for (let i = 0; i < substeps; i += 1) {
       if (throttle) {
@@ -239,16 +240,20 @@ export class VehicleController {
       REAL_CAR_MODEL_URL,
       (gltf) => {
         if (!gltf.scene || !gltf.scene.children.length) return;
+        // Keep the normalization root unrotated. The source car is Z-up, so rotate
+        // its content around X only, then center and ground it in parent coordinates.
         const modelRoot = new THREE.Group();
         modelRoot.name = 'Licensed Car Concept GLB';
-        // This asset was authored Z-up with its bonnet along local -Y.
-        // Convert to Three.js Y-up and align the bonnet with the controller's -Z forward.
-        modelRoot.rotation.set(-Math.PI / 2, Math.PI, 0);
-        modelRoot.add(gltf.scene);
+        const modelContent = new THREE.Group();
+        modelContent.name = 'Z-up to Y-up asset transform';
+        modelContent.rotation.x = Math.PI / 2;
+        modelContent.add(gltf.scene);
+        modelRoot.add(modelContent);
         modelRoot.traverse((node) => {
           if (node instanceof THREE.Mesh) {
-            node.castShadow = true;
-            node.receiveShadow = true;
+            node.castShadow = false;
+            node.receiveShadow = false;
+            node.frustumCulled = true;
           }
         });
         modelRoot.updateMatrixWorld(true);
@@ -264,9 +269,8 @@ export class VehicleController {
         modelRoot.updateMatrixWorld(true);
         const normalizedBounds = new THREE.Box3().setFromObject(modelRoot);
         const center = normalizedBounds.getCenter(new THREE.Vector3());
-        modelRoot.position.x -= center.x;
-        modelRoot.position.y -= normalizedBounds.min.y;
-        modelRoot.position.z -= center.z;
+        modelRoot.position.set(-center.x, -normalizedBounds.min.y, -center.z);
+        modelRoot.updateMatrixWorld(true);
 
         this.bodyVisual.add(modelRoot);
         this.bodyVisual.updateWorldMatrix(true, true);
