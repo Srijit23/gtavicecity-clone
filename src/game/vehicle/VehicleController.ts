@@ -18,6 +18,7 @@ type ModelWheel = {
 };
 const REAL_CAR_MODEL_URL = 'models/kenney-sedan.glb';
 const CAR_WHEEL_RADIUS = 0.31;
+const COLLISION_CELL_SIZE = 32;
 
 export class VehicleController {
   readonly object: THREE.Group;
@@ -26,6 +27,7 @@ export class VehicleController {
   private readonly playerController: PlayerController;
   private readonly collisionBoxes: THREE.Box3[];
   private readonly staticCollisionBoxes: THREE.Box3[];
+  private readonly collisionGrid = new Map<string, THREE.Box3[]>();
   private readonly vehicleCollisionBox = new THREE.Box3();
   private readonly bodyVisual = new THREE.Group();
   private readonly fallbackVisual = new THREE.Group();
@@ -57,6 +59,7 @@ export class VehicleController {
     this.player = playerController.object;
     this.collisionBoxes = collisionBoxes;
     this.staticCollisionBoxes = collisionBoxes.slice();
+    this.buildCollisionGrid();
     this.object = new THREE.Group();
     this.object.name = 'Kenney low-poly red sedan';
     this.object.position.set(-5, GROUND_Y, 0.2);
@@ -177,11 +180,45 @@ export class VehicleController {
       this.collisionCenterScratch.set(position.x, position.y + 0.7, position.z),
       this.collisionSizeScratch.set(VEHICLE_HALF_WIDTH * 2, 1.35, VEHICLE_HALF_LENGTH * 2),
     );
-    for (const box of this.staticCollisionBoxes) {
-      if (this.chassisBounds.max.y <= box.min.y || this.chassisBounds.min.y >= box.max.y) continue;
-      if (this.chassisBounds.intersectsBox(box)) return true;
+    const minCellX = Math.floor(this.chassisBounds.min.x / COLLISION_CELL_SIZE);
+    const maxCellX = Math.floor(this.chassisBounds.max.x / COLLISION_CELL_SIZE);
+    const minCellZ = Math.floor(this.chassisBounds.min.z / COLLISION_CELL_SIZE);
+    const maxCellZ = Math.floor(this.chassisBounds.max.z / COLLISION_CELL_SIZE);
+    for (let cellX = minCellX; cellX <= maxCellX; cellX += 1) {
+      for (let cellZ = minCellZ; cellZ <= maxCellZ; cellZ += 1) {
+        const candidates = this.collisionGrid.get(this.collisionCellKey(cellX, cellZ));
+        if (!candidates) continue;
+        for (const box of candidates) {
+          if (this.chassisBounds.max.y <= box.min.y || this.chassisBounds.min.y >= box.max.y) continue;
+          if (this.chassisBounds.intersectsBox(box)) return true;
+        }
+      }
     }
     return position.x < -820 || position.x > 24 || position.z < -415 || position.z > 415;
+  }
+
+  private collisionCellKey(x: number, z: number): string {
+    return `${x},${z}`;
+  }
+
+  private buildCollisionGrid(): void {
+    for (const box of this.staticCollisionBoxes) {
+      const minCellX = Math.floor(box.min.x / COLLISION_CELL_SIZE);
+      const maxCellX = Math.floor(box.max.x / COLLISION_CELL_SIZE);
+      const minCellZ = Math.floor(box.min.z / COLLISION_CELL_SIZE);
+      const maxCellZ = Math.floor(box.max.z / COLLISION_CELL_SIZE);
+      for (let cellX = minCellX; cellX <= maxCellX; cellX += 1) {
+        for (let cellZ = minCellZ; cellZ <= maxCellZ; cellZ += 1) {
+          const key = this.collisionCellKey(cellX, cellZ);
+          let bucket = this.collisionGrid.get(key);
+          if (!bucket) {
+            bucket = [];
+            this.collisionGrid.set(key, bucket);
+          }
+          bucket.push(box);
+        }
+      }
+    }
   }
 
   private buildVehicle(): void {
