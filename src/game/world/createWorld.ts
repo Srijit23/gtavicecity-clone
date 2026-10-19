@@ -191,8 +191,8 @@ export function createWorld(): WorldBundle {
   }
   const dinerSign = new THREE.Group();
   const signPanel = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.15, 5.2), darkMetal);
-  const signLetters = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 4.4), neonPink);
-  dinerSign.add(signPanel, signLetters);
+  const dinerSignLetters = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 4.4), neonPink);
+  dinerSign.add(signPanel, dinerSignLetters);
   dinerSign.position.set(right + 0.25, 3.3, dz);
   root.add(dinerSign);
   const dinerGlow = new THREE.PointLight('#ff65bb', 8, 16, 2);
@@ -253,8 +253,6 @@ export function createWorld(): WorldBundle {
   }
 
   // Painted art-deco landmark and waterfront railings.
-  const landmark = new THREE.Group();
-  landmark.name = 'Neon Coast landmark';
   addBox('Landmark plinth', -37, 0, -17, 2.5, 1.4, 9, darkMetal, true);
   addBox('Landmark neon panel', -38.2, 1.5, -17, 0.16, 4.1, 7.5, darkMetal);
   addBox('Landmark neon line', -38.32, 3.1, -17, 0.08, 0.14, 6.2, neonPink);
@@ -303,12 +301,12 @@ export function createWorld(): WorldBundle {
     if (justPressed && nearCounter) {
       dinerActivated = !dinerActivated;
       dinerGlow.intensity = dinerActivated ? 14 : 8;
-      dinerSign.children[1].material = dinerActivated ? neonCyan : neonPink;
+      dinerSignLetters.material = dinerActivated ? neonCyan : neonPink;
       interactionMessage = dinerActivated ? 'ORDER READY  //  ICED COFFEE SERVED' : 'COASTLINE DINER  //  COME AGAIN';
     } else if (justPressed && nearDoor) {
       interactionMessage = 'COASTLINE DINER  //  WALK THROUGH THE OPEN DOOR';
     }
-    if (nearCounter) return 'PRESS F  ·  ORDER COFFEE';
+    if (nearCounter) return dinerActivated ? 'ORDER READY  ·  PRESS F TO ORDER AGAIN' : 'PRESS F  ·  ORDER COFFEE';
     if (nearDoor) return 'COASTLINE DINER  ·  WALK INSIDE';
     if (interactionMessage && insideDiner) return interactionMessage;
     return '';
