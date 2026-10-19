@@ -73,7 +73,7 @@ function initialize(): void {
   renderer.domElement.id = 'game-canvas';
   gameRoot.replaceChildren(renderer.domElement);
 
-  cameraRig = new FollowCamera(renderer, worldScene, player);
+  cameraRig = new FollowCamera(worldScene, player);
   input = new InputManager(renderer.domElement);
   const clock = new THREE.Clock();
   const move = new THREE.Vector3();
