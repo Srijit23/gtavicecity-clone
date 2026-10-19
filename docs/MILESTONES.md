@@ -11,10 +11,12 @@
 - [ ] Verify on a real Chrome browser and measure FPS on target hardware
 
 ## Milestone B: Player
-- [ ] Source a properly licensed rigged character and animation clips
-- [ ] Grounded movement and collision/physics
-- [ ] Walk/run/jump animation blending
-- [ ] Camera obstruction handling with spatial acceleration
+- [x] Integrate a rigged humanoid GLB with idle, walk, and run clips (loaded from the Three.js example asset host)
+- [x] Add grounded movement, acceleration/deceleration, gravity, jumping, and axis-separated building collision
+- [x] Blend idle/walk/run states and use a generated rig-bone jump pose when the source model has no jump clip
+- [x] Smooth third-person character turning and camera follow with obstacle raycasts
+- [ ] Bundle a verified redistributable character asset locally and document its final license
+- [ ] Upgrade collision broad-phase/spatial acceleration and verify gameplay in a real browser
 
 ## Milestone C: Vehicle
 - [ ] One vehicle with physics, suspension, driving controls, entry and exit
