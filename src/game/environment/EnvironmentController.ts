@@ -12,6 +12,7 @@ export class EnvironmentController {
   private readonly skyMaterial: THREE.MeshBasicMaterial;
   private readonly fog: THREE.Fog;
   private readonly nightLights: THREE.PointLight[] = [];
+  private readonly emissiveWindowMaterials: Array<{ material: THREE.MeshStandardMaterial; baseIntensity: number }> = [];
   private mode: TimeOfDay = 'auto';
   private elapsed = 0;
   private night = 0.15;
@@ -35,6 +36,15 @@ export class EnvironmentController {
       if (object instanceof THREE.DirectionalLight && !sun) sun = object;
       if (object instanceof THREE.HemisphereLight && !hemi) hemi = object;
       if (object instanceof THREE.PointLight && object.userData.environmentLamp) this.nightLights.push(object);
+      if (object instanceof THREE.InstancedMesh) {
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        for (const material of materials) {
+          if (material instanceof THREE.MeshStandardMaterial && material.emissiveIntensity > 0
+            && !this.emissiveWindowMaterials.some((entry) => entry.material === material)) {
+            this.emissiveWindowMaterials.push({ material, baseIntensity: material.emissiveIntensity });
+          }
+        }
+      }
       if (object instanceof THREE.PointLight && (object.color.getHexString() === 'ff65bb' || object.color.getHexString() === 'ffdda7')) {
         object.userData.baseIntensity = object.intensity;
       }
@@ -90,6 +100,9 @@ export class EnvironmentController {
     // Street lamps and neon accents stay visible after dark without overpowering daytime.
     for (const light of this.nightLights) {
       light.intensity = (light.userData.baseIntensity ?? 0.65) * (0.12 + night * 1.9);
+    }
+    for (const entry of this.emissiveWindowMaterials) {
+      entry.material.emissiveIntensity = entry.baseIntensity * (0.65 + night * 1.8);
     }
   }
 }
