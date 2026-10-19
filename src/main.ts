@@ -66,7 +66,7 @@ function initialize(): void {
   const world = createWorld();
   worldScene.add(world.root);
   player = world.player;
-  vehicle = new VehicleController(world.root, new THREE.Vector3(-5, 0, -3));
+  vehicle = new VehicleController(world.root, new THREE.Vector3(-5, 0, 1));
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
