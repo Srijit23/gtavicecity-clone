@@ -19,7 +19,7 @@ export class FollowCamera {
     this.scene = scene;
     this.target = target;
     this.scene.traverse((object) => { if (object.userData.cameraObstacle === true) this.obstacles.push(object); });
-    this.camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 350);
+    this.camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.15, 1100);
     this.camera.position.set(0, 5, 9);
   }
 
@@ -45,7 +45,8 @@ export class FollowCamera {
   }
 
   follow(dt: number): void {
-    this.lookTarget.copy(this.target.position).add(new THREE.Vector3(0, this.driving ? 1.15 : 1.35, 0));
+    this.lookTarget.copy(this.target.position);
+    this.lookTarget.y += this.driving ? 1.15 : 1.35;
     if (this.driving) {
       const desiredYaw = this.target.rotation.y + this.drivingYawOffset;
       const difference = THREE.MathUtils.euclideanModulo(desiredYaw - this.yaw + Math.PI, Math.PI * 2) - Math.PI;
