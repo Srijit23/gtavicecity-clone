@@ -272,6 +272,13 @@ export function createWorld(): WorldBundle {
       lamp.position.set(x, 4.5, z);
       root.add(lamp);
       animated.push({ object: lamp, baseY: lamp.position.y, phase: z * 0.1 + x, amplitude: 0.025 });
+      if (x === 24.8 && z % 60 === 30) {
+        const pool = new THREE.PointLight('#ffc985', 0.65, 18, 2);
+        pool.position.set(x, 4.2, z);
+        pool.userData.environmentLamp = true;
+        pool.userData.baseIntensity = 0.65;
+        root.add(pool);
+      }
       if (x !== 24.8) {
         addBox('Sidewalk bench seat', x + (x < 0 ? -0.9 : 0.9), 0.45, z + 2.5, 1.7, 0.14, 0.48, mat('#8c5a43'), true);
         addBox('Sidewalk bench legs', x + (x < 0 ? -0.9 : 0.9), 0.12, z + 2.5, 0.12, 0.5, 0.12, darkMetal, true);
