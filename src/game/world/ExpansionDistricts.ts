@@ -28,8 +28,15 @@ const roofPalette = ['#785247', '#9b6553', '#4a5660', '#7b6c61', '#554a50'];
 const lawnPalette = ['#64875a', '#78945d', '#829c65', '#6d8b64'];
 const windowPalette = ['#375568', '#2c4657', '#4e6b79'];
 
-const material = (color: THREE.ColorRepresentation, roughness = 0.86, metalness = 0): THREE.MeshStandardMaterial =>
-  new THREE.MeshStandardMaterial({ color, roughness, metalness });
+const expansionMaterialCache = new Map<string, THREE.MeshStandardMaterial>();
+const material = (color: THREE.ColorRepresentation, roughness = 0.86, metalness = 0): THREE.MeshStandardMaterial => {
+  const key = `${new THREE.Color(color).getHexString()}|${roughness}|${metalness}`;
+  const cached = expansionMaterialCache.get(key);
+  if (cached) return cached;
+  const created = new THREE.MeshStandardMaterial({ color, roughness, metalness });
+  expansionMaterialCache.set(key, created);
+  return created;
+};
 
 function random01(seed: number): number {
   let value = seed | 0;
@@ -330,7 +337,6 @@ function addCampusAndPark(parent: THREE.Object3D, collisionBoxes: THREE.Box3[]):
   placeBox(park, 'Park perimeter path south', new THREE.Vector3(-281, 0.08, 220), new THREE.Vector3(42, 0.12, 1.8), concrete);
   placeBox(park, 'Park walkway west', new THREE.Vector3(-302, 0.08, 240), new THREE.Vector3(1.8, 0.12, 40), concrete);
   placeBox(park, 'Park walkway east', new THREE.Vector3(-260, 0.08, 240), new THREE.Vector3(1.8, 0.12, 40), concrete);
-  placeBox(park, 'Public swimming pool water', new THREE.Vector3(-281, 0.13, 240), new THREE.Vector3(13, 0.06, 8), new THREE.MeshStandardMaterial({ color: '#37a9c4', roughness: 0.22, metalness: 0.18 }));
   placeBox(park, 'Pool deck', new THREE.Vector3(-281, 0.09, 240), new THREE.Vector3(18, 0.08, 12), concrete);
   placeBox(park, 'Pool water inset', new THREE.Vector3(-281, 0.18, 240), new THREE.Vector3(12, 0.035, 7), new THREE.MeshStandardMaterial({ color: '#37a9c4', roughness: 0.22, metalness: 0.18 }));
   for (const [x, z, angle] of [[-295, 232, 0], [-267, 232, Math.PI], [-295, 250, 0], [-267, 250, Math.PI]] as const) {
@@ -338,6 +344,31 @@ function addCampusAndPark(parent: THREE.Object3D, collisionBoxes: THREE.Box3[]):
     bench.rotation.y = angle;
     placeBox(park, 'Park bench legs', new THREE.Vector3(x, 0.1, z), new THREE.Vector3(0.12, 0.5, 0.12), material('#4d5960', 0.5, 0.35));
   }
+
+  // Small playground equipment and park trees are instanced/shared rather than hundreds of individual parts.
+  placeBox(park, 'Playground platform', new THREE.Vector3(-292, 0.9, 252), new THREE.Vector3(2.2, 1.8, 2.0), material('#d7bd94', 0.85));
+  placeBox(park, 'Playground roof canopy', new THREE.Vector3(-292, 2.9, 252), new THREE.Vector3(3.2, 0.18, 3.0), material('#d36f63', 0.76));
+  for (const x of [-293, -291]) {
+    placeBox(park, 'Playground support', new THREE.Vector3(x, 0.0, 251), new THREE.Vector3(0.12, 2.8, 0.12), material('#b7b6a9', 0.7, 0.12));
+  }
+  const slide = placeBox(park, 'Playground slide ramp', new THREE.Vector3(-288.5, 0.48, 252), new THREE.Vector3(0.95, 0.14, 3.4), material('#66a9bf', 0.58, 0.12));
+  slide.rotation.x = -0.35;
+  for (const x of [-270, -265]) {
+    placeBox(park, 'Swing set post', new THREE.Vector3(x, 0, 253), new THREE.Vector3(0.13, 2.8, 0.13), material('#596d7a', 0.55, 0.22));
+  }
+  placeBox(park, 'Swing set top bar', new THREE.Vector3(-267.5, 2.7, 253), new THREE.Vector3(5.5, 0.14, 0.14), material('#596d7a', 0.55, 0.22));
+  for (const x of [-269, -266]) {
+    placeBox(park, 'Swing chain', new THREE.Vector3(x, 1.5, 253), new THREE.Vector3(0.05, 2.1, 0.05), material('#606b75', 0.5, 0.25));
+    placeBox(park, 'Swing seat', new THREE.Vector3(x, 0.42, 253), new THREE.Vector3(0.9, 0.12, 0.45), material('#d28b66', 0.75));
+  }
+  const parkTreeTrunks: THREE.Matrix4[] = [], parkCanopies: THREE.Matrix4[] = [], parkTreeColors: THREE.Color[] = [];
+  for (const [x, z] of [[-299, 225], [-263, 225], [-299, 255], [-263, 255], [-281, 263], [-281, 217]] as const) {
+    parkTreeTrunks.push(transform(new THREE.Vector3(x, 1.5, z), new THREE.Quaternion(), new THREE.Vector3(0.58, 3.0, 0.58)));
+    parkCanopies.push(transform(new THREE.Vector3(x, 4.0, z), new THREE.Quaternion(), new THREE.Vector3(2.3, 4.0, 2.3)));
+    parkTreeColors.push(new THREE.Color(lawnPalette[Math.floor(random01(Math.round(x * 17 + z)) * lawnPalette.length)]));
+  }
+  addInstances(park, 'Park instanced tree trunks', new THREE.CylinderGeometry(0.35, 0.5, 1, 6), material('#795d45', 0.95), parkTreeTrunks);
+  addInstances(park, 'Park instanced tree crowns', new THREE.ConeGeometry(1, 1, 7), material('#ffffff', 0.98), parkCanopies, parkTreeColors);
 
   const warehouse = new THREE.Group();
   warehouse.name = 'Light industrial and storage yard';
