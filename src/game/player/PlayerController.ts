@@ -37,6 +37,8 @@ export class PlayerController {
   constructor(object: THREE.Group, collisionBoxes: THREE.Box3[]) {
     this.object = object;
     this.collisionBoxes = collisionBoxes;
+    this.indexedCollisionCount = collisionBoxes.length;
+    this.buildCollisionGrid();
     this.object.name = 'Player character';
     this.object.position.set(-5, GROUND_Y, 4);
     this.fallback = this.createFallback();
