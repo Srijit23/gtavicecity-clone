@@ -9,7 +9,7 @@ const ENTER_DISTANCE = 4.5;
 
 type WheelAssembly = { pivot: THREE.Group; wheel: THREE.Group; front: boolean; side: number; restY: number };
 type ModelWheel = { pivot: THREE.Group; front: boolean };
-const REAL_CAR_MODEL_URL = 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CarConcept/glTF-Binary/CarConcept.glb';
+const REAL_CAR_MODEL_URL = 'https://cdn.3dassets.dev/assets/29025/v1/model.glb';
 
 export class VehicleController {
   readonly object: THREE.Group;
@@ -24,6 +24,8 @@ export class VehicleController {
   private readonly wheels: WheelAssembly[] = [];
   private readonly modelWheels: ModelWheel[] = [];
   private realModelLoaded = false;
+  private modelMixer: THREE.AnimationMixer | null = null;
+  private modelRollAction: THREE.AnimationAction | null = null;
   private readonly chassisBounds = new THREE.Box3();
   private speed = 0;
   private steering = 0;
@@ -112,6 +114,7 @@ export class VehicleController {
       }
     }
     this.suspensionPhase += dt * (2.2 + Math.abs(this.speed) * 0.8);
+    if (this.modelMixer) this.modelMixer.update(dt * THREE.MathUtils.clamp(Math.abs(this.speed) / 8, 0.12, 2.4));
     const accelerationPulse = Math.min(1, Math.abs(this.speed - oldSpeed) * 0.055);
     this.object.position.y = GROUND_Y + Math.sin(this.suspensionPhase) * (0.004 + accelerationPulse * 0.012);
     const pitchTarget = throttle ? -0.035 : brakeOrReverse && this.speed > 0 ? 0.045 : 0;
@@ -238,36 +241,24 @@ export class VehicleController {
       REAL_CAR_MODEL_URL,
       (gltf) => {
         if (!gltf.scene || !gltf.scene.children.length) return;
-        // Keep the normalization root unrotated. The source car is Z-up, so rotate
-        // its content around X only, then center and ground it in parent coordinates.
+
+        // This replacement asset is authored Y-up in metres (about 2.03 × 1.66 × 4.665).
+        // Do not rotate it: the controller drives along local -Z and Three.js uses +Y up.
         const modelRoot = new THREE.Group();
-        modelRoot.name = 'Licensed Car Concept GLB';
-        const modelContent = new THREE.Group();
-        modelContent.name = 'Z-up to Y-up asset transform';
-        // Source axes: Z-up, vehicle nose along -Y. Convert up to +Y and nose to -Z.
-        // Explicit quaternion composition avoids Euler-order ambiguity: convert Z-up to Y-up,
-        // then reverse the longitudinal axis so the hood points along controller -Z.
-        const zUpToYUp = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
-        const sourceForwardToController = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
-        modelContent.quaternion.copy(sourceForwardToController).multiply(zUpToYUp);
-        modelContent.add(gltf.scene);
-        modelRoot.add(modelContent);
-        modelRoot.traverse((node) => {
-          if (node instanceof THREE.Mesh) {
-            node.castShadow = false;
-            node.receiveShadow = false;
-            node.frustumCulled = true;
-          }
-        });
+        modelRoot.name = 'Low-poly red saloon (CC0)';
+        modelRoot.add(gltf.scene);
         modelRoot.updateMatrixWorld(true);
 
         const bounds = new THREE.Box3().setFromObject(modelRoot);
         const size = bounds.getSize(new THREE.Vector3());
-        if (!Number.isFinite(size.x) || size.x <= 0 || size.z <= 0) {
-          console.warn('[NEON COAST] Car GLB had invalid bounds; keeping procedural fallback.');
+        if (bounds.isEmpty() || !Number.isFinite(size.x) || size.x <= 0 || size.y <= 0 || size.z <= 0) {
+          console.warn('[NEON COAST] Replacement car has invalid bounds; keeping procedural fallback.');
           return;
         }
-        const scale = Math.min(1.92 / size.x, 4.15 / size.z, 1.58 / Math.max(size.y, 0.01));
+
+        // Normalize in the asset's native Y-up coordinates only. Never rotate the root
+        // after measuring bounds, which was the source of the previous standing-car bug.
+        const scale = Math.min(1.92 / size.x, 4.15 / size.z, 1.58 / size.y);
         modelRoot.scale.setScalar(scale);
         modelRoot.updateMatrixWorld(true);
         const normalizedBounds = new THREE.Box3().setFromObject(modelRoot);
@@ -275,24 +266,34 @@ export class VehicleController {
         modelRoot.position.set(-center.x, -normalizedBounds.min.y, -center.z);
         modelRoot.updateMatrixWorld(true);
 
-        this.bodyVisual.add(modelRoot);
-        this.bodyVisual.updateWorldMatrix(true, true);
-        modelRoot.updateWorldMatrix(true, true);
-
-        // The source asset contains named front/rear wheel pivot groups. Reparent each
-        // to a pivot at its transformed wheel center so steering and rolling do not orbit
-        // the car's origin, even when the source mesh stores wheel vertices in world-like coordinates.
-        const wheelNodes: Array<{ node: THREE.Object3D; front: boolean }> = [];
         modelRoot.traverse((node) => {
-          if (/^Wheel(Front|Rear)[LR]$/i.test(node.name)) {
-            wheelNodes.push({ node, front: /^WheelFront/i.test(node.name) });
+          if (node instanceof THREE.Mesh) {
+            node.castShadow = false;
+            node.receiveShadow = false;
+            node.frustumCulled = true;
           }
         });
-        if (wheelNodes.length < 4) {
-          this.bodyVisual.remove(modelRoot);
-          console.warn('[NEON COAST] Car GLB did not expose all four wheel pivots; keeping procedural fallback.');
-          return;
+        this.bodyVisual.add(modelRoot);
+
+        // Use the replacement asset's own authored rolling animation if available.
+        // It is lightweight and avoids guessing wheel pivots from an unrelated model.
+        if (gltf.animations.length > 0) {
+          const mixer = new THREE.AnimationMixer(modelRoot);
+          const roll = gltf.animations.find((clip) => /roll|wheel|drive/i.test(clip.name)) ?? gltf.animations[0];
+          const action = mixer.clipAction(roll);
+          action.setLoop(THREE.LoopRepeat, Infinity);
+          action.play();
+          this.modelMixer = mixer;
+          this.modelRollAction = action;
         }
+
+        // If explicit wheel pivots are provided, use them for synchronized steering/rotation.
+        const wheelNodes: Array<{ node: THREE.Object3D; front: boolean }> = [];
+        modelRoot.traverse((node) => {
+          if (/wheel/i.test(node.name) && node.children.length >= 0 && node.name.length > 0) {
+            wheelNodes.push({ node, front: /front|fl/i.test(node.name) });
+          }
+        });
         for (const entry of wheelNodes) {
           const wheelBounds = new THREE.Box3().setFromObject(entry.node);
           if (wheelBounds.isEmpty()) continue;
@@ -306,15 +307,13 @@ export class VehicleController {
           this.modelWheels.push({ pivot, front: entry.front });
         }
 
-        // Respect the existing driving collision footprint and avoid duplicate wheel meshes.
         this.fallbackVisual.visible = false;
         this.realModelLoaded = true;
-        this.bodyVisual.updateWorldMatrix(true, true);
-        console.info(`[NEON COAST] Real car model loaded with ${this.modelWheels.length} animated wheel assemblies.`);
+        console.info(`[NEON COAST] Low-poly car loaded; ${this.modelWheels.length} named wheel pivots, ${gltf.animations.length} authored animations.`);
       },
       undefined,
       (error) => {
-        console.warn('[NEON COAST] Real car model failed to load; procedural coupe remains active.', error);
+        console.warn('[NEON COAST] Replacement car failed to load; procedural coupe remains active.', error);
       },
     );
   }
@@ -332,9 +331,11 @@ export class VehicleController {
   private animateWheels(dt: number): void {
     if (this.realModelLoaded) {
       for (const wheel of this.modelWheels) {
-        wheel.pivot.rotation.x += this.speed * dt / 0.34;
         if (wheel.front) wheel.pivot.rotation.y = this.steering * 0.78;
+        // Wheel rotation axis varies by model; the authored roll clip handles it when present.
+        if (!this.modelRollAction) wheel.pivot.rotation.x += this.speed * dt / 0.34;
       }
+      if (this.modelRollAction) this.modelRollAction.timeScale = THREE.MathUtils.clamp(Math.abs(this.speed) / 7, 0.08, 2.8) * (this.speed < 0 ? -1 : 1);
     }
     for (const assembly of this.wheels) {
       if (this.realModelLoaded) continue;
