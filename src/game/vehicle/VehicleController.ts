@@ -9,7 +9,7 @@ const ENTER_DISTANCE = 4.5;
 
 type WheelAssembly = { pivot: THREE.Group; wheel: THREE.Group; front: boolean; side: number; restY: number };
 type ModelWheel = { pivot: THREE.Group; front: boolean };
-const REAL_CAR_MODEL_URL = 'https://cdn.3dassets.dev/assets/29025/v1/model.glb';
+const REAL_CAR_MODEL_URL = 'https://cdn.3dassets.dev/assets/29024/v1/model.glb';
 
 export class VehicleController {
   readonly object: THREE.Group;
@@ -246,6 +246,9 @@ export class VehicleController {
         // Do not rotate it: the controller drives along local -Z and Three.js uses +Y up.
         const modelRoot = new THREE.Group();
         modelRoot.name = 'Low-poly red saloon (CC0)';
+        // Hatchback asset faces +Z; the vehicle controller drives along -Z.
+        // Rotate the asset 180 degrees around Y before measuring its bounds.
+        modelRoot.rotation.y = Math.PI;
         modelRoot.add(gltf.scene);
         modelRoot.updateMatrixWorld(true);
 
@@ -275,11 +278,11 @@ export class VehicleController {
         });
         this.bodyVisual.add(modelRoot);
 
-        // Use the replacement asset's own authored rolling animation if available.
-        // It is lightweight and avoids guessing wheel pivots from an unrelated model.
-        if (gltf.animations.length > 0) {
+        // Use the asset's authored "roll" clip. This model's wheel nodes are animated
+        // by that clip; reparenting them would invalidate glTF animation bindings.
+        const roll = gltf.animations.find((clip) => /roll/i.test(clip.name));
+        if (roll) {
           const mixer = new THREE.AnimationMixer(modelRoot);
-          const roll = gltf.animations.find((clip) => /roll|wheel|drive/i.test(clip.name)) ?? gltf.animations[0];
           const action = mixer.clipAction(roll);
           action.setLoop(THREE.LoopRepeat, Infinity);
           action.play();
@@ -287,25 +290,13 @@ export class VehicleController {
           this.modelRollAction = action;
         }
 
-        // If explicit wheel pivots are provided, use them for synchronized steering/rotation.
-        const wheelNodes: Array<{ node: THREE.Object3D; front: boolean }> = [];
+        // Discover front wheel pivots for steering only; leave the hierarchy untouched
+        // so the authored wheel-roll animation remains bound to the original node paths.
         modelRoot.traverse((node) => {
-          if (/wheel/i.test(node.name) && node.children.length >= 0 && node.name.length > 0) {
-            wheelNodes.push({ node, front: /front|fl/i.test(node.name) });
+          if (/wheel.*front|front.*wheel|wheel-(left|right)-front/i.test(node.name)) {
+            this.modelWheels.push({ pivot: node as THREE.Group, front: true });
           }
         });
-        for (const entry of wheelNodes) {
-          const wheelBounds = new THREE.Box3().setFromObject(entry.node);
-          if (wheelBounds.isEmpty()) continue;
-          const worldCenter = wheelBounds.getCenter(new THREE.Vector3());
-          const localCenter = this.bodyVisual.worldToLocal(worldCenter.clone());
-          const pivot = new THREE.Group();
-          pivot.name = `Animated ${entry.node.name} pivot`;
-          pivot.position.copy(localCenter);
-          this.bodyVisual.add(pivot);
-          pivot.attach(entry.node);
-          this.modelWheels.push({ pivot, front: entry.front });
-        }
 
         this.fallbackVisual.visible = false;
         this.realModelLoaded = true;
@@ -313,7 +304,7 @@ export class VehicleController {
       },
       undefined,
       (error) => {
-        console.warn('[NEON COAST] Replacement car failed to load; procedural coupe remains active.', error);
+        console.error('[NEON COAST] Real car model failed to load. Check network/CORS for ' + REAL_CAR_MODEL_URL, error);
       },
     );
   }
@@ -332,8 +323,6 @@ export class VehicleController {
     if (this.realModelLoaded) {
       for (const wheel of this.modelWheels) {
         if (wheel.front) wheel.pivot.rotation.y = this.steering * 0.78;
-        // Wheel rotation axis varies by model; the authored roll clip handles it when present.
-        if (!this.modelRollAction) wheel.pivot.rotation.x += this.speed * dt / 0.34;
       }
       if (this.modelRollAction) this.modelRollAction.timeScale = THREE.MathUtils.clamp(Math.abs(this.speed) / 7, 0.08, 2.8) * (this.speed < 0 ? -1 : 1);
     }
