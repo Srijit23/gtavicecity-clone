@@ -62,6 +62,8 @@ async function initialize(): Promise<void> {
   loadingMessage.textContent = 'Building the waterfront district…';
   worldScene = new THREE.Scene();
   const world = createWorld();
+  worldScene.background = new THREE.Color('#e7aa96');
+  worldScene.fog = world.root.userData.fog instanceof THREE.Fog ? world.root.userData.fog : null;
   worldScene.add(world.root);
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
@@ -143,6 +145,12 @@ async function initialize(): Promise<void> {
         ? `DRIVING · ${vehicleController.speedKmh} KM/H`
         : `X ${position.x.toFixed(1)} · Z ${position.z.toFixed(1)} · ${playerController.isUsingRiggedCharacter ? 'RIGGED' : 'FALLBACK'}`;
       const vehiclePrompt = document.getElementById('vehicle-prompt');
+      const cityPrompt = document.getElementById('city-prompt');
+      if (cityPrompt) {
+        const message = vehicleController?.isDriving ? '' : world.interact(world.player.position, input.keys);
+        cityPrompt.textContent = message;
+        cityPrompt.classList.toggle('visible', Boolean(message));
+      }
       if (vehiclePrompt) {
         vehiclePrompt.textContent = vehicleController?.isDriving
           ? 'W ACCELERATE · S BRAKE / REVERSE · A / D STEER · SPACE HANDBRAKE · E EXIT'
