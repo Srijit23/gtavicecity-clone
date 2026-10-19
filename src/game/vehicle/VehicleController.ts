@@ -33,6 +33,12 @@ export class VehicleController {
   private readonly modelWheels: ModelWheel[] = [];
   private realModelLoaded = false;
   private readonly chassisBounds = new THREE.Box3();
+  private readonly forwardScratch = new THREE.Vector3();
+  private readonly previousPositionScratch = new THREE.Vector3();
+  private readonly collisionCenterScratch = new THREE.Vector3();
+  private readonly collisionSizeScratch = new THREE.Vector3();
+  private readonly vehicleCenterScratch = new THREE.Vector3();
+  private readonly vehicleSizeScratch = new THREE.Vector3();
   private speed = 0;
   private steering = 0;
   private suspensionPhase = 0;
@@ -117,11 +123,11 @@ export class VehicleController {
       const yawRate = Math.tan(this.steering) * (this.speed / 2.75) * grip;
       this.object.rotation.y -= yawRate * step;
 
-      const forward = new THREE.Vector3(-Math.sin(this.object.rotation.y), 0, -Math.cos(this.object.rotation.y));
-      const previous = this.object.position.clone();
-      this.object.position.addScaledVector(forward, this.speed * step);
+      this.forwardScratch.set(-Math.sin(this.object.rotation.y), 0, -Math.cos(this.object.rotation.y));
+      this.previousPositionScratch.copy(this.object.position);
+      this.object.position.addScaledVector(this.forwardScratch, this.speed * step);
       if (this.collidesAt(this.object.position)) {
-        this.object.position.copy(previous);
+        this.object.position.copy(this.previousPositionScratch);
         this.speed = Math.abs(this.speed) < 2 ? 0 : -this.speed * 0.08;
         this.steering *= 0.25;
       }
@@ -168,8 +174,8 @@ export class VehicleController {
 
   private collidesAt(position: THREE.Vector3): boolean {
     this.chassisBounds.setFromCenterAndSize(
-      new THREE.Vector3(position.x, position.y + 0.7, position.z),
-      new THREE.Vector3(VEHICLE_HALF_WIDTH * 2, 1.35, VEHICLE_HALF_LENGTH * 2),
+      this.collisionCenterScratch.set(position.x, position.y + 0.7, position.z),
+      this.collisionSizeScratch.set(VEHICLE_HALF_WIDTH * 2, 1.35, VEHICLE_HALF_LENGTH * 2),
     );
     for (const box of this.staticCollisionBoxes) {
       if (this.chassisBounds.max.y <= box.min.y || this.chassisBounds.min.y >= box.max.y) continue;
@@ -352,8 +358,8 @@ export class VehicleController {
     const halfX = VEHICLE_HALF_WIDTH * Math.abs(Math.cos(yaw)) + VEHICLE_HALF_LENGTH * Math.abs(Math.sin(yaw));
     const halfZ = VEHICLE_HALF_LENGTH * Math.abs(Math.cos(yaw)) + VEHICLE_HALF_WIDTH * Math.abs(Math.sin(yaw));
     this.vehicleCollisionBox.setFromCenterAndSize(
-      new THREE.Vector3(this.object.position.x, this.object.position.y + 0.72, this.object.position.z),
-      new THREE.Vector3(halfX * 2, 1.42, halfZ * 2),
+      this.vehicleCenterScratch.set(this.object.position.x, this.object.position.y + 0.72, this.object.position.z),
+      this.vehicleSizeScratch.set(halfX * 2, 1.42, halfZ * 2),
     );
   }
 
