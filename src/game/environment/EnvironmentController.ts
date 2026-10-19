@@ -16,6 +16,14 @@ export class EnvironmentController {
   private readonly skyZenith = new THREE.Color();
   private readonly skyHorizon = new THREE.Color();
   private readonly skyLower = new THREE.Color();
+  private readonly sceneSky = new THREE.Color();
+  private readonly fogTint = new THREE.Color();
+  private readonly clearSunColor = new THREE.Color('#fff0d2');
+  private readonly sunsetSunColor = new THREE.Color('#ff8b73');
+  private readonly clearHemiColor = new THREE.Color('#8bbbe9');
+  private readonly sunsetHemiColor = new THREE.Color('#ffad9a');
+  private readonly nightGroundColor = new THREE.Color('#292c49');
+  private readonly dayGroundColor = new THREE.Color('#bf8d70');
   private readonly fog: THREE.Fog;
   private readonly nightLights: THREE.PointLight[] = [];
   private readonly emissiveWindowMaterials: Array<{ material: THREE.MeshStandardMaterial; baseIntensity: number }> = [];
@@ -107,16 +115,16 @@ export class EnvironmentController {
     const sunset = Math.exp(-Math.pow((phase - 0.49) / 0.12, 2));
     const night = 1 - daylight;
     this.night = night;
-    const sky = this.colors.nightSky.clone().lerp(this.colors.daySky, daylight).lerp(this.colors.sunsetSky, sunset * 0.72);
-    const fog = this.colors.nightFog.clone().lerp(this.colors.dayFog, daylight).lerp(this.colors.sunsetFog, sunset * 0.82);
-    this.scene.background = sky;
+    this.sceneSky.copy(this.colors.nightSky).lerp(this.colors.daySky, daylight).lerp(this.colors.sunsetSky, sunset * 0.72);
+    this.fogTint.copy(this.colors.nightFog).lerp(this.colors.dayFog, daylight).lerp(this.colors.sunsetFog, sunset * 0.82);
+    this.scene.background = this.sceneSky;
     this.skyZenith.copy(this.colors.nightZenith).lerp(this.colors.dayZenith, daylight).lerp(this.colors.sunsetZenith, sunset * 0.86);
     this.skyHorizon.copy(this.colors.nightHorizon).lerp(this.colors.dayHorizon, daylight).lerp(this.colors.sunsetHorizon, sunset * 0.82);
     this.skyLower.copy(this.colors.nightLower).lerp(this.colors.dayLower, daylight).lerp(this.colors.sunsetLower, sunset * 0.78);
     this.skyMaterial.uniforms.zenithColor.value = this.skyZenith;
     this.skyMaterial.uniforms.horizonColor.value = this.skyHorizon;
     this.skyMaterial.uniforms.lowerColor.value = this.skyLower;
-    this.fog.color.copy(fog);
+    this.fog.color.copy(this.fogTint);
     this.fog.near = 230 + daylight * 55;
     this.fog.far = 560 + daylight * 220;
     const solarAngle = phase * Math.PI * 2;
@@ -128,10 +136,10 @@ export class EnvironmentController {
     if (this.moonDisc) this.moonDisc.visible = night > 0.38 && Math.sin(lunarAngle) > -0.08;
     if (this.cloudLayer) this.cloudLayer.rotation.y += dt * 0.0009;
     if (this.cloudMaterial) this.cloudMaterial.opacity = 0.06 + daylight * 0.3;
-    this.sun.color.set('#fff0d2').lerp(new THREE.Color('#ff8b73'), sunset * 0.7);
+    this.sun.color.copy(this.clearSunColor).lerp(this.sunsetSunColor, sunset * 0.7);
     this.hemisphere.intensity = 0.24 + daylight * 1.22;
-    this.hemisphere.color.set('#8bbbe9').lerp(new THREE.Color('#ffad9a'), sunset * 0.55);
-    this.hemisphere.groundColor.set('#292c49').lerp(new THREE.Color('#bf8d70'), daylight);
+    this.hemisphere.color.copy(this.clearHemiColor).lerp(this.sunsetHemiColor, sunset * 0.55);
+    this.hemisphere.groundColor.copy(this.nightGroundColor).lerp(this.dayGroundColor, daylight);
     this.renderer.toneMappingExposure = 0.82 + daylight * 0.34;
     // Street lamps and neon accents stay visible after dark without overpowering daytime.
     for (const light of this.nightLights) {
