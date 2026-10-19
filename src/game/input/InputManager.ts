@@ -6,7 +6,7 @@ export class InputManager {
   private readonly element: HTMLElement;
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (this.isTypingTarget(event.target)) return;
-    if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'ShiftLeft', 'ShiftRight', 'Space'].includes(event.code)) event.preventDefault();
+    if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'KeyF', 'ShiftLeft', 'ShiftRight', 'Space'].includes(event.code)) event.preventDefault();
     this.keys.add(event.code);
     if (event.code === 'Escape') this.clear();
   };
