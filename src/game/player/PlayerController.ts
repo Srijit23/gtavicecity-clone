@@ -157,10 +157,10 @@ export class PlayerController {
     const rightZ = -Math.sin(cameraYaw);
     this.desiredVelocity.set(0, 0, 0);
 
-    if (keys.has('KeyW')) this.desiredVelocity.add(new THREE.Vector3(forwardX, 0, forwardZ));
-    if (keys.has('KeyS')) this.desiredVelocity.add(new THREE.Vector3(-forwardX, 0, -forwardZ));
-    if (keys.has('KeyD')) this.desiredVelocity.add(new THREE.Vector3(rightX, 0, rightZ));
-    if (keys.has('KeyA')) this.desiredVelocity.add(new THREE.Vector3(-rightX, 0, -rightZ));
+    if (keys.has('KeyW')) { this.desiredVelocity.x += forwardX; this.desiredVelocity.z += forwardZ; }
+    if (keys.has('KeyS')) { this.desiredVelocity.x -= forwardX; this.desiredVelocity.z -= forwardZ; }
+    if (keys.has('KeyD')) { this.desiredVelocity.x += rightX; this.desiredVelocity.z += rightZ; }
+    if (keys.has('KeyA')) { this.desiredVelocity.x -= rightX; this.desiredVelocity.z -= rightZ; }
 
     const moving = this.desiredVelocity.lengthSq() > 0;
     const sprinting = keys.has('ShiftLeft') || keys.has('ShiftRight');
@@ -195,8 +195,8 @@ export class PlayerController {
     if (!this.collidesAt(this.candidate)) this.object.position.z = this.candidate.z;
     else this.velocity.z = 0;
 
-    this.object.position.x = THREE.MathUtils.clamp(this.object.position.x, -105, 105);
-    this.object.position.z = THREE.MathUtils.clamp(this.object.position.z, -112, 112);
+    this.object.position.x = THREE.MathUtils.clamp(this.object.position.x, -820, 24);
+    this.object.position.z = THREE.MathUtils.clamp(this.object.position.z, -415, 415);
 
     const horizontalSpeed = Math.hypot(this.velocity.x, this.velocity.z);
     if (horizontalSpeed > 0.2) {
@@ -238,7 +238,7 @@ export class PlayerController {
   }
 
   private collidesAt(position: THREE.Vector3): boolean {
-    if (position.x < -105 || position.x > 105 || position.z < -112 || position.z > 112) return true;
+    if (position.x < -820 || position.x > 24 || position.z < -415 || position.z > 415) return true;
     const feet = position.y;
     const head = feet + PLAYER_HEIGHT;
     for (const box of this.collisionBoxes) {
