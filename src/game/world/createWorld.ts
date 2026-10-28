@@ -49,6 +49,20 @@ function createGroundTexture(): THREE.CanvasTexture | undefined {
   return texture;
 }
 
+
+function createFacadeTexture(): THREE.CanvasTexture | undefined {
+  const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
+  const ctx = canvas.getContext('2d'); if (!ctx) return undefined;
+  ctx.fillStyle = '#b7afa3'; ctx.fillRect(0, 0, 128, 128);
+  let seed = 43127;
+  const random = (): number => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+  for (let i = 1800; i > 0; i--) { const v = Math.floor(105 + random() * 95); ctx.fillStyle = 'rgba(' + v + ',' + Math.max(0,v-5) + ',' + Math.max(0,v-12) + ',' + (0.025+random()*0.09) + ')'; ctx.fillRect(random()*128, random()*128, 1+random()*2, 1+random()*2); }
+  ctx.strokeStyle = 'rgba(65,54,47,0.10)'; ctx.lineWidth = 1;
+  for (let y=32;y<128;y+=32) { ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(128,y);ctx.stroke(); }
+  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping; texture.repeat.set(1.5,1.5); texture.anisotropy=2; return texture;
+}
+
 export function createWorld(): WorldBundle {
   const root = new THREE.Group();
   root.name = 'Neon Coast playable district';
@@ -65,6 +79,7 @@ export function createWorld(): WorldBundle {
   const sidewalkMaterial = mat('#cdbda8');
   const curbMaterial = mat('#e9d7b9', 0.92);
   const laneMaterial = new THREE.MeshBasicMaterial({ color: '#f2d8a7' });
+  const facadeTexture = createFacadeTexture();
   const buildingColors = ['#d88f7e', '#e7c58f', '#83afb5', '#c58ca8', '#d8b58d', '#8ba5ad', '#ead7b7', '#b9a4ca'];
   const windowMaterials = [
     new THREE.MeshStandardMaterial({ color: '#243e55', emissive: '#142b43', emissiveIntensity: 0.38, roughness: 0.28, metalness: 0.18 }),
@@ -172,7 +187,10 @@ export function createWorld(): WorldBundle {
       const depth = 15 + ((row + 1) % 3) * 2.4;
       const height = 9 + ((row * 7) % 5) * 3.2;
       const color = buildingColors[(row + (side > 0 ? 2 : 0)) % buildingColors.length];
-      addBox('Art deco building ' + row + '-' + side, x, 0, z, width, height, depth, mat(color, 0.72), true);
+      const facadeMaterial = mat(color, 0.84);
+      if (facadeTexture) facadeMaterial.map = facadeTexture;
+      facadeMaterial.needsUpdate = true;
+      addBox('Art deco building ' + row + '-' + side, x, 0, z, width, height, depth, facadeMaterial, true);
       addBox('Building crown ' + row + '-' + side, x, height, z, width + 0.42, 0.3, depth + 0.42, trimMaterial, true);
       addBox('Facade lower band ' + row + '-' + side, x, 1.05, z - depth / 2 - 0.035, width, 0.2, 0.08, trimMaterial);
       addBox('Facade upper band ' + row + '-' + side, x, height - 1.15, z - depth / 2 - 0.04, width, 0.12, 0.08, trimMaterial);
