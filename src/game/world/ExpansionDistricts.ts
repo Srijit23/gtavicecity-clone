@@ -55,6 +55,15 @@ function createSurfaceTexture(kind: 'stucco' | 'roof'): THREE.CanvasTexture | un
   const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(kind==='roof'?2:1.4,kind==='roof'?2:1.4);texture.anisotropy=2;return texture;
 }
 
+
+function createAsphaltTexture(): THREE.CanvasTexture | undefined {
+  const canvas=document.createElement('canvas');canvas.width=128;canvas.height=128;
+  const ctx=canvas.getContext('2d');if(!ctx)return undefined;ctx.fillStyle='#35383b';ctx.fillRect(0,0,128,128);
+  let seed=5519;const rand=():number=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+  for(let i=0;i<4200;i++){const v=Math.floor(42+rand()*34);ctx.fillStyle='rgba('+v+','+v+','+(v+2)+','+(0.12+rand()*0.28)+')';ctx.fillRect(rand()*128,rand()*128,1,1);}
+  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(8,8);texture.anisotropy=2;return texture;
+}
+
 function random01(seed: number): number {
   let value = seed | 0;
   value = Math.imul(value ^ (value >>> 16), 0x45d9f3b);
@@ -413,9 +422,12 @@ export function createExpansionDistricts(parent: THREE.Group, collisionBoxes: TH
   const roads = new THREE.Group();
   roads.name = 'Expanded connected road network';
   parent.add(roads);
-  const roadMat = material('#303946', 0.96);
+  const roadMat = material('#35383b', 0.98);
+  const asphaltTexture = createAsphaltTexture();
+  if (asphaltTexture) roadMat.map = asphaltTexture;
+  roadMat.needsUpdate = true;
   const sidewalkMat = material('#cbbda8', 0.96);
-  const laneMat = new THREE.MeshBasicMaterial({ color: '#f0d7a7' });
+  const laneMat = new THREE.MeshBasicMaterial({ color: '#f6f5f0' });
   const roadMatrices: THREE.Matrix4[] = [];
   const sidewalkMatrices: THREE.Matrix4[] = [];
   const markingMatrices: THREE.Matrix4[] = [];
