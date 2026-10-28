@@ -38,6 +38,23 @@ const material = (color: THREE.ColorRepresentation, roughness = 0.86, metalness 
   return created;
 };
 
+
+function createSurfaceTexture(kind: 'stucco' | 'roof'): THREE.CanvasTexture | undefined {
+  const canvas = document.createElement('canvas'); canvas.width=128; canvas.height=128;
+  const ctx=canvas.getContext('2d'); if(!ctx) return undefined;
+  let seed=9081;
+  const random=():number=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+  if(kind==='stucco'){
+    ctx.fillStyle='#bcb5a9';ctx.fillRect(0,0,128,128);
+    for(let i=1700;i>0;i--){const v=Math.floor(120+random()*100);ctx.fillStyle='rgba('+v+','+(v-4)+','+(v-10)+','+(0.025+random()*0.1)+')';ctx.fillRect(random()*128,random()*128,1+random()*2,1+random()*2);}
+    ctx.strokeStyle='rgba(74,62,52,0.12)';ctx.lineWidth=1;for(let y=32;y<128;y+=32){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(128,y);ctx.stroke();}
+  } else {
+    ctx.fillStyle='#514b48';ctx.fillRect(0,0,128,128);
+    for(let y=0;y<128;y+=12){const offset=(Math.floor(y/12)%2)*10;for(let x=-10;x<138;x+=20){const v=55+Math.floor(random()*28);ctx.fillStyle='rgb('+v+','+(v-4)+','+(v-7)+')';ctx.fillRect(x+offset,y,18,10);ctx.strokeStyle='rgba(20,18,18,0.38)';ctx.strokeRect(x+offset,y,18,10);}}
+  }
+  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(kind==='roof'?2:1.4,kind==='roof'?2:1.4);texture.anisotropy=2;return texture;
+}
+
 function random01(seed: number): number {
   let value = seed | 0;
   value = Math.imul(value ^ (value >>> 16), 0x45d9f3b);
@@ -198,8 +215,14 @@ function makeHousingZone(
     ));
   }
 
-  const shellMat = material('#ffffff', 0.88);
-  const roofMat = material('#ffffff', 0.9);
+  const shellMat = material('#ffffff', 0.92);
+  const roofMat = material('#ffffff', 0.94);
+  const stuccoTexture = createSurfaceTexture('stucco');
+  const roofTexture = createSurfaceTexture('roof');
+  if (stuccoTexture) shellMat.map = stuccoTexture;
+  if (roofTexture) roofMat.map = roofTexture;
+  shellMat.needsUpdate = true;
+  roofMat.needsUpdate = true;
   const frameMat = material('#e9ddc6', 0.68);
   const paneMat = material(windowPalette[0], 0.3, 0.12);
   const doorMat = material('#78533e', 0.9);
