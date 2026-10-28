@@ -10,9 +10,31 @@
   <body>
     <div id="app">
       <div id="game-root" aria-label="3D game world"></div>
-      <div id="loading" class="overlay loading"><div class="eyebrow">NEON COAST // FOUNDATION BUILD</div><h1>Preparing the city</h1><p id="loading-message">Initializing WebGL renderer…</p><div class="loading-track"><span></span></div></div>
-      <section id="start-screen" class="overlay start-screen hidden" aria-labelledby="game-title"><div class="start-card"><p class="eyebrow">A COASTAL CITY PROTOTYPE</p><h1 id="game-title">NEON <span>COAST</span></h1><p class="intro">Golden-hour streets. Neon on the horizon. Your city starts here.</p><div class="feature-row"><span>3D WORLD</span><span>FREE ROAM</span><span>FOUNDATION A</span></div><button id="start-button" type="button">Enter the city <span aria-hidden="true">↗</span></button><p class="hint">W A S D to move · Mouse to look · Wheel to zoom</p></div></section>
-      <div id="hud" class="hud hidden"><div class="brand-mark"><span class="brand-dot"></span> NEON COAST <small>FOUNDATION A</small></div><div class="hud-right"><span id="position-readout">X 0 · Z 0</span><button id="unlock-button" type="button" title="Release mouse (Escape)">UNLOCK MOUSE</button></div><div class="crosshair" aria-hidden="true"></div><div class="control-tip"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> MOVE <span>·</span> MOUSE LOOK <span>·</span> <kbd>ESC</kbd> RELEASE</div></div>
+      <div id="loading" class="overlay loading"><div class="eyebrow">NEON COAST // WORLD OPTIMIZATION</div><h1>Preparing the city</h1><p id="loading-message">Initializing WebGL renderer…</p><div class="loading-track"><span></span></div></div>
+      <section id="start-screen" class="overlay start-screen hidden" aria-labelledby="game-title"><div class="start-card"><p class="eyebrow">A COASTAL CITY PROTOTYPE</p><h1 id="game-title">NEON <span>COAST</span></h1><p class="intro">Explore a waterfront city on foot with a walk-in diner, shifting skies, coastal ambience, and open streets to explore.</p><div class="feature-row"><span>DAY / NIGHT</span><span>COASTAL AMBIENCE</span><span>FREE ROAM</span></div><button id="start-button" type="button">Enter the city <span aria-hidden="true">↗</span></button><p class="hint">WASD move · Shift sprint · Space jump · F interact · mouse camera · Esc release</p></div></section>
+      <div id="hud" class="hud hidden"><div class="brand-mark"><span class="brand-dot"></span> NEON COAST <small>MILESTONE F // PRESENTATION</small></div><div class="hud-right"><span id="position-readout">X 0 · Z 0</span><button id="time-button" type="button">TIME: AUTO</button><button id="audio-button" type="button">SOUND: ON</button><button id="help-button" type="button">HELP</button><button id="pause-button" type="button">PAUSE</button><button id="unlock-button" type="button" title="Release mouse (Escape)">UNLOCK MOUSE</button></div><div class="crosshair" aria-hidden="true"></div><div class="control-tip"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> MOVE <span>·</span> <kbd>SHIFT</kbd> SPRINT <span>·</span> <kbd>SPACE</kbd> JUMP <span>·</span> <kbd>F</kbd> INTERACT <span>·</span> MOUSE LOOK <span>·</span> <kbd>ESC</kbd> RELEASE</div><div id="city-prompt" class="city-prompt" aria-live="polite"></div></div>
+
+      <section id="pause-screen" class="overlay menu-screen hidden" aria-labelledby="pause-title">
+        <div class="start-card menu-card">
+          <p class="eyebrow">NEON COAST // SYSTEM MENU</p><h1 id="pause-title">PAUSED<span>.</span></h1>
+          <p class="intro">Take a breath, change the ambience, or jump back into the waterfront.</p>
+          <div class="menu-actions">
+            <button id="resume-button" type="button">Resume game ↗</button>
+            <button id="menu-time-button" type="button">Cycle time of day</button>
+            <button id="menu-audio-button" type="button">Toggle ambience</button>
+            <button id="restart-button" type="button">Restart game</button>
+          </div>
+          <p class="hint">The simulation pauses while this menu is open.</p>
+        </div>
+      </section>
+      <section id="help-panel" class="overlay menu-screen hidden" aria-labelledby="help-title">
+        <div class="start-card menu-card">
+          <p class="eyebrow">QUICK REFERENCE</p><h1 id="help-title">CONTROLS<span>.</span></h1>
+          <p class="intro">Explore on foot: WASD move · Shift sprint · Space jump · F interact at the diner · mouse look · wheel zoom · Esc release mouse</p>
+          <button id="close-help-button" type="button">Back to game</button>
+          
+        </div>
+      </section>
       <div id="error-screen" class="overlay error-screen hidden" role="alert"><div class="start-card"><p class="eyebrow">STARTUP ISSUE</p><h1>Could not load the world</h1><p id="error-message">An unexpected error occurred.</p><button id="retry-button" type="button">Try again</button><p class="hint">Use a current desktop browser with WebGL 2 enabled.</p></div></div>
     </div>
     <script type="module" src="/src/main.ts"></script>

@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: [main, milestone-a]
+    branches: [main, milestone-a, milestone-b-player]
   pull_request:
 
 jobs:
