@@ -246,7 +246,7 @@ async function initialize(): Promise<void> {
     ambienceAudio.updateNight(environmentController?.nightAmount ?? 0.15);
 
     if (started && !paused && !document.hidden) {
-      cameraRig.setTarget(world.player, false);
+      cameraRig.setTarget(world.player);
       cameraRig.update(dt, input.lookDeltaX, input.lookDeltaY, input.zoomDelta);
       input.consumeMouseDeltas();
       playerController.update(dt, input.keys, cameraRig.yaw);
