@@ -19,6 +19,17 @@ const mat = (color: THREE.ColorRepresentation, roughness = 0.82, metalness = 0):
   return created;
 };
 
+
+function createAsphaltTexture(): THREE.CanvasTexture | undefined {
+  const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
+  const ctx = canvas.getContext('2d'); if (!ctx) return undefined;
+  ctx.fillStyle = '#35383b'; ctx.fillRect(0,0,128,128);
+  let seed = 77123;
+  const random = (): number => { seed = (Math.imul(seed,1664525)+1013904223)>>>0; return seed/4294967296; };
+  for(let i=0;i<4200;i++){const v=Math.floor(42+random()*35);ctx.fillStyle='rgba('+v+','+v+','+(v+2)+','+(0.12+random()*0.28)+')';ctx.fillRect(random()*128,random()*128,1,1);}
+  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace=THREE.SRGBColorSpace; texture.wrapS=texture.wrapT=THREE.RepeatWrapping; texture.repeat.set(8,8); texture.anisotropy=2; return texture;
+}
+
 function createGroundTexture(): THREE.CanvasTexture | undefined {
   const canvas = document.createElement('canvas');
   canvas.width = 256;
@@ -75,7 +86,10 @@ export function createWorld(): WorldBundle {
   const groundMaterial = mat('#d1dec0', 0.98);
   const groundTexture = createGroundTexture();
   if (groundTexture) groundMaterial.map = groundTexture;
-  const roadMaterial = mat('#303746', 0.96);
+  const roadMaterial = mat('#35383b', 0.98);
+  const asphaltTexture = createAsphaltTexture();
+  if (asphaltTexture) roadMaterial.map = asphaltTexture;
+  roadMaterial.needsUpdate = true;
   const sidewalkMaterial = mat('#cdbda8');
   const curbMaterial = mat('#e9d7b9', 0.92);
   const laneMaterial = new THREE.MeshBasicMaterial({ color: '#f2d8a7' });
