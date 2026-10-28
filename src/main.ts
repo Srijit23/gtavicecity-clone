@@ -3,7 +3,6 @@ import { InputManager } from './game/input/InputManager';
 import { createWorld } from './game/world/createWorld';
 import { FollowCamera } from './game/camera/FollowCamera';
 import { PlayerController } from './game/player/PlayerController';
-import { VehicleController } from './game/vehicle/VehicleController';
 import { AmbienceAudio, EnvironmentController } from './game/environment/EnvironmentController';
 import './style.css';
 
@@ -31,10 +30,6 @@ const hud = byId<HTMLDivElement>('hud');
 const errorScreen = byId<HTMLDivElement>('error-screen');
 const errorMessage = byId<HTMLParagraphElement>('error-message');
 const positionReadout = byId<HTMLSpanElement>('position-readout');
-const vehicleDashboard = byId<HTMLDivElement>('vehicle-dashboard');
-const speedValue = byId<HTMLSpanElement>('speed-value');
-const speedGear = byId<HTMLSpanElement>('speed-gear');
-const speedFill = byId<HTMLSpanElement>('speed-fill');
 const unlockButton = byId<HTMLButtonElement>('unlock-button');
 const gameRoot = byId<HTMLDivElement>('game-root');
 const pauseScreen = byId<HTMLElement>('pause-screen');
@@ -50,7 +45,6 @@ let renderer: THREE.WebGLRenderer | undefined;
 let input: InputManager | undefined;
 let cameraRig: FollowCamera | undefined;
 let playerController: PlayerController | undefined;
-let vehicleController: VehicleController | undefined;
 let environmentController: EnvironmentController | undefined;
 const ambienceAudio = new AmbienceAudio();
 let animationFrame = 0;
@@ -156,7 +150,6 @@ async function initialize(): Promise<void> {
   loadingMessage.textContent = 'Loading the rigged protagonist and animation clips…';
   await playerController.loadCharacter();
 
-  vehicleController = new VehicleController(world.root, playerController, world.collisionBoxes);
   environmentController = new EnvironmentController(worldScene, world.root, renderer);
   cameraRig = new FollowCamera(worldScene, world.player);
   input = new InputManager(renderer.domElement);
@@ -247,18 +240,17 @@ async function initialize(): Promise<void> {
     adaptPixelRatio(rawDelta, frameMilliseconds);
     const dt = Math.min(rawDelta, 0.05);
     const elapsed = clock.elapsedTime;
-    const environmentFocus = vehicleController?.isDriving ? vehicleController.object.position : world.player.position;
+    const environmentFocus = world.player.position;
     world.update(dt, elapsed, environmentFocus);
     environmentController?.update(dt, environmentFocus);
     ambienceAudio.updateNight(environmentController?.nightAmount ?? 0.15);
 
     if (started && !paused && !document.hidden) {
-      vehicleController?.update(dt, input.keys);
-      cameraRig.setTarget(vehicleController?.isDriving ? vehicleController.object : world.player, Boolean(vehicleController?.isDriving));
+      cameraRig.setTarget(world.player, false);
       cameraRig.update(dt, input.lookDeltaX, input.lookDeltaY, input.zoomDelta);
       input.consumeMouseDeltas();
-      if (!vehicleController?.isDriving) playerController.update(dt, input.keys, cameraRig.yaw);
-      currentCityPrompt = vehicleController?.isDriving ? '' : world.interact(world.player.position, input.keys);
+      playerController.update(dt, input.keys, cameraRig.yaw);
+      currentCityPrompt = world.interact(world.player.position, input.keys);
     } else {
       cameraRig.update(dt, 0, 0, 0);
     }
@@ -266,7 +258,7 @@ async function initialize(): Promise<void> {
     cameraRig.follow(dt);
     renderer.render(worldScene, cameraRig.camera);
     if (diagnosticsPanel && elapsed - lastDiagnosticsUpdate > 0.25) {
-      const position = vehicleController?.isDriving ? vehicleController.object.position : world.player.position;
+      const position = world.player.position;
       const fps = frameTimeEmaMs > 0 ? 1000 / frameTimeEmaMs : 0;
       diagnosticsPanel.textContent = [
         'NEON COAST · DEBUG',
@@ -283,32 +275,11 @@ async function initialize(): Promise<void> {
     }
     if (elapsed - lastHudUpdate > 0.15 && started && !paused) {
       const position = world.player.position;
-      positionReadout.textContent = vehicleController?.isDriving
-        ? `DRIVING · ${vehicleController.speedKmh} KM/H`
-        : `X ${position.x.toFixed(1)} · Z ${position.z.toFixed(1)} · ${playerController.isUsingRiggedCharacter ? 'RIGGED' : 'FALLBACK'}`;
-      const vehiclePrompt = document.getElementById('vehicle-prompt');
+      positionReadout.textContent = `X ${position.x.toFixed(1)} · Z ${position.z.toFixed(1)} · ${playerController.isUsingRiggedCharacter ? 'RIGGED' : 'FALLBACK'}`;
       const cityPrompt = document.getElementById('city-prompt');
-      const driving = Boolean(vehicleController?.isDriving);
-      vehicleDashboard.classList.toggle('hidden', !driving);
-      if (driving && vehicleController) {
-        speedValue.textContent = String(vehicleController.speedKmh);
-        speedGear.textContent = vehicleController.signedSpeed < -0.35 ? 'R' : vehicleController.speedKmh < 2 ? 'N' : 'D';
-        speedFill.style.width = `${Math.min(100, (vehicleController.speedKmh / 160) * 100)}%`;
-        speedFill.classList.toggle('speed-fill-high', vehicleController.speedKmh >= 110);
-      } else {
-        speedValue.textContent = '0';
-        speedFill.style.width = '0%';
-        speedFill.classList.remove('speed-fill-high');
-      }
       if (cityPrompt) {
         cityPrompt.textContent = currentCityPrompt;
         cityPrompt.classList.toggle('visible', Boolean(currentCityPrompt));
-      }
-      if (vehiclePrompt) {
-        vehiclePrompt.textContent = vehicleController?.isDriving
-          ? 'W ACCELERATE · S BRAKE / REVERSE · A / D STEER · SPACE HANDBRAKE · E EXIT · MOUSE LOOK'
-          : vehicleController?.nearVehicle ? 'PRESS E TO ENTER THE COUPE' : '';
-        vehiclePrompt.classList.toggle('visible', Boolean(vehicleController?.isDriving || vehicleController?.nearVehicle));
       }
       lastHudUpdate = elapsed;
     }
