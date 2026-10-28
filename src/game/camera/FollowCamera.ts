@@ -9,8 +9,6 @@ export class FollowCamera {
   private distance = 8.5;
   private readonly scene: THREE.Scene;
   private target: THREE.Object3D;
-  private driving = false;
-  private drivingYawOffset = 0;
   private readonly desiredPosition = new THREE.Vector3();
   private readonly lookTarget = new THREE.Vector3();
   private readonly raycaster = new THREE.Raycaster();
@@ -42,35 +40,19 @@ export class FollowCamera {
     this.camera.position.set(0, 5, 9);
   }
 
-  setTarget(target: THREE.Object3D, driving: boolean): void {
+  setTarget(target: THREE.Object3D): void {
     this.target = target;
-    if (this.driving !== driving) {
-      this.driving = driving;
-      this.distance = driving ? 10.5 : 8.5;
-      this.pitch = driving ? 0.17 : 0.24;
-      if (driving) {
-        // Start directly behind the car, then let mouse movement orbit around its heading.
-        this.yaw = target.rotation.y;
-        this.drivingYawOffset = 0;
-      }
-    }
   }
 
   update(_dt: number, dx: number, dy: number, zoom: number): void {
-    if (this.driving) this.drivingYawOffset -= dx * 0.0022;
-    else this.yaw -= dx * 0.0025;
-    this.pitch = THREE.MathUtils.clamp(this.pitch - dy * 0.0018, this.driving ? -0.02 : -0.12, this.driving ? 0.58 : 0.85);
-    this.distance = THREE.MathUtils.clamp(this.distance + zoom * 0.8, this.driving ? 6.5 : 3.5, this.driving ? 17 : 15);
+    this.yaw -= dx * 0.0025;
+    this.pitch = THREE.MathUtils.clamp(this.pitch - dy * 0.0018, -0.12, 0.85);
+    this.distance = THREE.MathUtils.clamp(this.distance + zoom * 0.8, 3.5, 15);
   }
 
   follow(dt: number): void {
     this.lookTarget.copy(this.target.position);
-    this.lookTarget.y += this.driving ? 1.15 : 1.35;
-    if (this.driving) {
-      const desiredYaw = this.target.rotation.y + this.drivingYawOffset;
-      const difference = THREE.MathUtils.euclideanModulo(desiredYaw - this.yaw + Math.PI, Math.PI * 2) - Math.PI;
-      this.yaw += difference * (1 - Math.exp(-Math.max(dt, 0) * 4.8));
-    }
+    this.lookTarget.y += 1.35;
     const horizontal = Math.cos(this.pitch) * this.distance;
     this.desiredPosition.set(
       this.lookTarget.x + Math.sin(this.yaw) * horizontal,
