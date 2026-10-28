@@ -7,7 +7,7 @@ A browser-based, GTA Vice City-inspired coastal-city prototype built with Vite, 
 - Node.js 20 or newer
 - npm
 - A desktop browser with WebGL 2 support (Chrome recommended)
-- Internet access for the rigged character model, which currently loads from the Three.js example asset host. The Kenney sedan GLB is bundled locally and does not require an external car CDN.
+- Internet access for the rigged character model, which currently loads from the Three.js example asset host. Vehicle driving and car assets have been removed from this build.
 
 ## Run locally
 
@@ -25,12 +25,11 @@ npm run preview
 
 ## Controls
 
-- WASD: walk / accelerate / steer
+- WASD: walk and explore
 - Shift: sprint on foot
-- Space: jump on foot / handbrake while driving
-- E: enter or exit the car
+- Space: jump
 - F: interact with the Coastline Diner
-- Mouse: look and orbit the driving camera; wheel: zoom; Esc: release pointer lock
+- Mouse: look around; wheel: zoom; Esc: release pointer lock
 - HUD: change time of day, mute ambience, open help, pause/resume, unlock mouse, and restart
 
 ## Current implementation
